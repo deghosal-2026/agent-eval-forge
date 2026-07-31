@@ -20,8 +20,9 @@ class HybridScorer:
         self.gate = gate() if isinstance(gate, type) else gate
         self.judge = judge
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         judge_scorer = getattr(self, "_judge_scorer", None)
         if judge_scorer is None:
             judge_scorer_cls = get_scorer(self.metric_name)

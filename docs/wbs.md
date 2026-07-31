@@ -10,7 +10,7 @@
 |-----------|-------|--------|
 | M0: Scaffold | Repo, config, CI, package structure | Week 2 (Jul 28 - Aug 3) |
 | M1: Core Runner | Scenario loading, agent invocation, artifact capture | Week 3 (Aug 4-10) |
-| M2: Scoring Engine | Deterministic scorers, LLM-as-judge, hybrid scoring | Week 3 (Aug 4-10) |
+| M2: Scoring Engine | Deterministic scorers, LLM-as-judge, hybrid scoring | **Complete** (Aug 4-10) |
 | M3: Comparison & Baselines | Baseline save/load, comparison engine, reporting | Week 3 (Aug 4-10) |
 | M4: Launch Scenarios 1-5 | Retrieval, synthesis, extraction, tool args, tool avoidance | Week 3 (Aug 4-10) |
 | M5: Launch Scenarios 6-10 | Refusal, ambiguity, budget, recovery, coding | Week 3 (Aug 4-10) |
@@ -138,51 +138,47 @@
 
 ### Checklist
 
-- [ ] Implement `Scorer` base class (`src/evalforge/scoring/base.py`) → [#34](https://github.com/deghosal-2026/agent-eval-forge/issues/34)
-  - [ ] `name` attribute
-  - [ ] `score(artifact, scenario) -> ScoreResult` method
-- [ ] Implement `ScoreResult` model (`src/evalforge/scoring/result.py`) → [#34](https://github.com/deghosal-2026/agent-eval-forge/issues/34)
-  - [ ] metric name, score (0.0-1.0), threshold, passed (bool), detail (dict)
-- [ ] Implement deterministic scorers (`src/evalforge/scoring/deterministic/`) → [#49](https://github.com/deghosal-2026/agent-eval-forge/issues/49)
-- [ ] `ExactMatchScorer` — output equals expected with case-insensitive option → [#35](https://github.com/deghosal-2026/agent-eval-forge/issues/35)
-  - [ ] `SchemaValidScorer` — JSON Schema validation
-  - [ ] `FieldPresenceScorer` — required fields present
-  - [ ] `ToolCalledScorer` — specific tool invoked
-  - [ ] `ToolNotCalledScorer` — specific tool not invoked
-- [ ] `ToolArgsMatchScorer` — tool arguments match (exact, subset, superset) → [#39](https://github.com/deghosal-2026/agent-eval-forge/issues/39)
-  - [ ] `ToolSequenceScorer` — tools called in expected order
-  - [ ] `StepCountScorer` — steps within budget
-  - [ ] `TokenCountScorer` — tokens within budget
-  - [ ] `CostBudgetScorer` — cost within budget
-  - [ ] `TimeoutScorer` — run completed without timeout
-- [ ] Implement LLM-as-Judge scorers (`src/evalforge/scoring/judge/`) → [#50](https://github.com/deghosal-2026/agent-eval-forge/issues/50)
-- [ ] Judge client abstraction (OpenAI, Anthropic, local) → [#42](https://github.com/deghosal-2026/agent-eval-forge/issues/42)
-  - [ ] `TaskCompletionScorer` — did the agent accomplish the goal?
-  - [ ] `OutputCorrectnessScorer` — is the answer factually correct?
-  - [ ] `SynthesisQualityScorer` — quality of multi-source synthesis
-  - [ ] `ClarificationQualityScorer` — quality of clarifying question
-  - [ ] `ConflictExplanationScorer` — quality of conflict detection
-  - [ ] `HallucinationCheckScorer` — did the agent fabricate facts?
-  - [ ] `RefusalQualityScorer` — quality of safe refusal
-  - [ ] `PlanQualityScorer` — quality of proposed plan
-  - [ ] `RecoveryQualityScorer` — quality of failure recovery
-- [ ] Implement `HybridScorer` (`src/evalforge/scoring/hybrid.py`) → [#51](https://github.com/deghosal-2026/agent-eval-forge/issues/51)
-  - [ ] Deterministic gate first, judge fallback
-  - [ ] Configurable per scenario
-- [ ] Implement `ScoringEngine` (`src/evalforge/scoring/engine.py`) → [#47](https://github.com/deghosal-2026/agent-eval-forge/issues/47)
-- [ ] Run all deterministic scorers for a scenario → [#49](https://github.com/deghosal-2026/agent-eval-forge/issues/49)
-  - [ ] Run LLM judge scorers only when configured and needed
-  - [ ] Aggregate scores per scenario
-- [ ] Apply evaluation hierarchy: safety > correctness > efficiency → [#47](https://github.com/deghosal-2026/agent-eval-forge/issues/47)
-  - [ ] Safety violations produce hard fail
-  - [ ] Correctness/efficiency regressions warn by default
-- [ ] Implement custom scorer registration (`src/evalforge/scoring/registry.py`) → [#48](https://github.com/deghosal-2026/agent-eval-forge/issues/48)
-  - [ ] `@register_scorer` decorator
-  - [ ] Entry point discovery
-- [ ] Write unit tests for all deterministic scorers → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write integration tests for LLM-as-judge scorers with mock judge → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write tests for hybrid scoring → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write tests for evaluation hierarchy enforcement → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Implement `Scorer` base class (`src/evalforge/scoring/base.py`) → [#34](https://github.com/deghosal-2026/agent-eval-forge/issues/34)
+  - [x] `name` attribute
+  - [x] `score(artifact, scenario) -> ScoreResult` method
+- [x] Implement `ScoreResult` model (`src/evalforge/scoring/result.py`) → [#34](https://github.com/deghosal-2026/agent-eval-forge/issues/34)
+  - [x] metric name, score (0.0-1.0), threshold, passed (bool), detail (dict)
+- [x] Implement deterministic scorers (`src/evalforge/scoring/deterministic/`) → [#49](https://github.com/deghosal-2026/agent-eval-forge/issues/49)
+- [x] `ToolCorrectnessScorer` — called tools are allowed (naming differs from WBS; spec catalog names become registry aliases) → [#35](https://github.com/deghosal-2026/agent-eval-forge/issues/35)
+  - [x] `SchemaValidityScorer` — JSON Schema validation
+  - [x] `FieldCorrectnessScorer` — required fields present
+  - [x] `ZeroDisallowedActionsScorer` — disallowed tool never invoked
+  - [x] `UnsafeActionAvoidanceScorer` — safety-class tool avoidance
+- [x] `ArgumentCorrectnessScorer` — tool arguments match (exact, subset) → [#39](https://github.com/deghosal-2026/agent-eval-forge/issues/39)
+  - [x] `RetryDisciplineGate` — repeated-tool discipline check
+  - [x] `StepEfficiencyScorer` — steps within budget
+  - [x] `CostBudgetAdherenceScorer` — cost within budget
+- [x] Implement LLM-as-Judge scorers (`src/evalforge/scoring/judge/`) → [#50](https://github.com/deghosal-2026/agent-eval-forge/issues/50)
+- [x] Judge client abstraction (OpenAI, Anthropic, Ollama, mock) → [#42](https://github.com/deghosal-2026/agent-eval-forge/issues/42)
+  - [x] `TaskCompletionScorer` — did the agent accomplish the goal?
+  - [x] `OutputCorrectnessScorer` — is the answer factually correct?
+  - [x] `SynthesisQualityScorer` — quality of multi-source synthesis
+  - [x] `ClarificationQualityScorer` — quality of clarifying question
+  - [x] `RefusalQualityScorer` — quality of safe refusal
+  - [x] `RecoveryQualityScorer` — quality of failure recovery
+  - [x] `BlastRadiusAccuracyScorer`, `VerificationQualityScorer`, `HypothesisQualityScorer`, `EvidenceGroundingScorer`, `HallucinationRateScorer` — remaining judge metrics
+- [x] Implement `HybridScorer` (`src/evalforge/scoring/hybrid.py`) → [#51](https://github.com/deghosal-2026/agent-eval-forge/issues/51)
+  - [x] Deterministic gate first, judge fallback
+  - [x] Configurable per metric via `metric_config`
+- [x] Implement `ScoringEngine` (`src/evalforge/scoring/engine.py`) → [#47](https://github.com/deghosal-2026/agent-eval-forge/issues/47)
+- [x] Run all deterministic scorers for a scenario → [#49](https://github.com/deghosal-2026/agent-eval-forge/issues/49)
+  - [x] Run LLM judge scorers only when configured and needed
+  - [x] Aggregate scores per scenario
+- [x] Apply evaluation hierarchy: safety > correctness > efficiency → [#47](https://github.com/deghosal-2026/agent-eval-forge/issues/47)
+  - [x] Safety violations produce hard fail
+  - [x] Correctness/efficiency regressions warn by default
+- [x] Implement custom scorer registration (`src/evalforge/scoring/registry.py`) → [#48](https://github.com/deghosal-2026/agent-eval-forge/issues/48)
+  - [x] `@register_scorer` decorator
+  - [x] Entry point discovery
+- [x] Write unit tests for all deterministic scorers → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Write integration tests for LLM-as-judge scorers with mock judge → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Write tests for hybrid scoring → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Write tests for evaluation hierarchy enforcement → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
 
 ### Success Criteria
 
@@ -195,12 +191,12 @@
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] Code review completed
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 
