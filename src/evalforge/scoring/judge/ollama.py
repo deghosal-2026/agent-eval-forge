@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import httpx
+
 from evalforge.models.errors import JudgeError
 from evalforge.scoring.judge.client import JudgeClient
 from evalforge.scoring.judge.openai import _parse_verdict
@@ -20,7 +22,6 @@ class OllamaClient(JudgeClient):
 
     def judge(self, prompt: str, *, max_tokens: int = 512,
               temperature: float = 0.0) -> JudgeVerdict:
-        import httpx
         resp = httpx.post(
             f"{self.base_url}/api/chat",
             json={
