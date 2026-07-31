@@ -15,6 +15,8 @@
 2. **Launch pack pulled forward:** All 20 launch scenarios are authored in M1
    (`scenarios/core-launch.yaml`). M4/M5 now cover only mock agents, tests,
    and fixture data.
+3. **Output strictness:** `strict_output` defaults to `false` for adoption.
+   In strict mode, non-JSON stdout is an adapter error.
 
 ## Goal
 
@@ -42,6 +44,7 @@ restricted payload:
 
 ```json
 {
+  "schema_version": "evalforge.invocation_payload.v1",
   "run_id": "run-20260730-001",
   "scenario_id": "launch-01-account-policy",
   "input": "What is the return policy for premium customers?",
@@ -116,6 +119,9 @@ Parsing rules:
   with an empty trajectory and null cost.
 - Extra JSON fields are ignored for forward compatibility.
 
+Strict mode:
+- If `strict_output=true`, non-JSON stdout becomes a scenario error (`status="error"`).
+
 ### Runner (`src/evalforge/runner.py`)
 
 - `Runner.load_pack(path)` — parse + validate.
@@ -163,6 +169,7 @@ definitions. Semantic scoring of `expected`/rubrics happens in M2.
 | Duplicate scenario IDs | `PackParseError` at load |
 | Agent timeout | `status="timeout"`, continue pack |
 | Agent crash / non-zero exit | `status="error"`, capture stderr, continue |
+| Non-JSON stdout with strict_output=true | `status="error"`, continue |
 | HTTP connection error / non-200 | `status="error"`, continue |
 | Python import error / exception | `status="error"`, capture exception |
 

@@ -42,6 +42,7 @@ thresholds). Adapters always transmit a restricted payload:
 
 ```json
 {
+  "schema_version": "evalforge.invocation_payload.v1",
   "run_id": "run-20260730-001",
   "scenario_id": "launch-01-account-policy",
   "input": "…",
@@ -52,6 +53,11 @@ thresholds). Adapters always transmit a restricted payload:
 }
 ```
 
+Notes:
+- `allowed_tools` are ToolSpec objects (name + description; schemas are optional in v0.1).
+- `disallowed_tools` are included for clarity/audit, but are not a capability grant.
+- `expected`/`metrics` never leave EvalForge.
+
 ### 1. Subprocess (default)
 
 Agent is an executable. EvalForge passes the invocation payload as stdin JSON and captures stdout.
@@ -61,6 +67,7 @@ agent:
   type: subprocess
   command: python my_agent.py
   timeout_seconds: 120
+  strict_output: false
 ```
 
 Contract: agent receives the invocation payload JSON on stdin. EvalForge parses
@@ -83,6 +90,11 @@ Envelope schema (v1):
 }
 ```
 
+Envelope parsing rules:
+- If `strict_output=false` (default): if stdout fails JSON parsing, EvalForge falls back
+  to treating stdout as `output.final` with empty trajectory and null cost.
+- If `strict_output=true`: non-JSON stdout is an adapter error (`status="error"`).
+
 ### 2. Python Import
 
 Agent is a Python callable in the local environment.
@@ -92,6 +104,8 @@ agent:
   type: python
   module: my_package.agent
   function: run
+  timeout_seconds: 120
+  strict_output: false
 ```
 
 Contract: `run(payload: dict) -> dict | str`
@@ -119,6 +133,7 @@ agent:
   type: http
   url: http://localhost:8000/run
   timeout_seconds: 120
+  strict_output: false
 ```
 
 Contract: POST the invocation payload as JSON, expect the same JSON envelope
@@ -327,6 +342,21 @@ run:
   error: null
 ```
 
+### TrajectoryStep Schema (v0.1)
+
+`trajectory.steps` is an ordered list of steps. Minimal fields by step type:
+
+| type | Required | Optional |
+|------|----------|----------|
+| `tool_call` | `tool`, `args` | `duration_ms` |
+| `tool_result` | `tool`, `result` | `duration_ms`, `error` |
+| `response` | `content` | `duration_ms` |
+| `note` | `content` | |
+
+Notes:
+- Adapters may collapse `tool_call`+`tool_result` into a single step in v0.1.
+- Extra fields are allowed and ignored for forward compatibility.
+
 ## Baseline Model
 
 Baselines use named files by default. Git-tag references also supported.
@@ -407,6 +437,22 @@ Default output paths:
   comparisons/
     v1.3.0-vs-v1.2.3.json
 ```
+
+### run_id and run.json
+
+`run_id` is a human-sortable identifier generated at pack-run start:
+
+`run-YYYYMMDD-HHMMSS-<rand>`
+
+`run.json` is the pack-level index used by later milestones (baselines,
+comparison, reporting). It should include:
+
+- `run_id`, `pack.name`, `pack.version`, `pack_hash`
+- `agent` config (sanitized; no secrets)
+- `selected_tags` filter (if any)
+- timestamps (`start`, `end`, `duration_ms`)
+- `scenario_ids` in execution order
+- relative paths to per-scenario artifact files
 
 ## v0.1 Launch Pack — Scenario Definitions
 
@@ -1771,12 +1817,20 @@ class MyAdapter(Adapter):
     name = "my_framework"
     
     def run(self, scenario: dict, config: dict) -> RunResult:
-        input_data = scenario["input"]
-        tools = [t["name"] for t in scenario.get("allowed_tools", [])]
-        context = scenario.get("context", {})
+        # Build invocation payload (strip evaluation-only fields like `expected`/`metrics`).
+        payload = {
+            "schema_version": "evalforge.invocation_payload.v1",
+            "run_id": config.get("run_id", "run-unknown"),
+            "scenario_id": scenario["id"],
+            "input": scenario["input"],
+            "context": scenario.get("context", {}),
+            "allowed_tools": scenario.get("allowed_tools", []),
+            "disallowed_tools": scenario.get("disallowed_tools", []),
+            "budget": scenario.get("budget", {}),
+        }
         
         # Invoke agent, capture output and trajectory
-        output, trajectory = self._invoke(input_data, tools, context)
+        output, trajectory = self._invoke(payload)
         
         return RunResult(
             output=output,
@@ -1832,21 +1886,28 @@ scenario:
     - name: "data_purge"
 ```
 
-When `disallowed_tools` are specified, the adapter should preferably prevent calling them at runtime. If the adapter does not support prevention, EvalForge will catch the violation during scoring and hard-fail the scenario.
+When `disallowed_tools` are specified:
+
+- **M1 (core runner):** adapters are not required to prevent calls. They record
+  what happened and produce a `RunArtifact`.
+- **M2+ (scoring):** any disallowed tool invocation is a hard fail (exit code 4).
+- **Later (optional hardening):** adapters and/or tool stubs may proactively
+  block disallowed tools for stronger safety guarantees.
 
 ### Adapter-Level Enforcement (Recommended)
 
 ```python
 class SafeSubprocessAdapter(SubprocessAdapter):
-    """Subprocess adapter that filters disallowed tools before invocation."""
+    """Subprocess adapter that blocks disallowed tools before invocation."""
     
     def run(self, scenario, config):
+        # Optional hardening: remove disallowed tools from the allowed list
+        # before building the invocation payload.
         disallowed = {t["name"] for t in scenario.get("disallowed_tools", [])}
-        filtered_tools = [
-            t for t in scenario.get("allowed_tools", [])
-            if t["name"] not in disallowed
+        scenario = dict(scenario)
+        scenario["allowed_tools"] = [
+            t for t in scenario.get("allowed_tools", []) if t["name"] not in disallowed
         ]
-        scenario["allowed_tools"] = filtered_tools
         return super().run(scenario, config)
 ```
 
