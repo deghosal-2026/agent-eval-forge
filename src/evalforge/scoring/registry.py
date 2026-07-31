@@ -18,6 +18,8 @@ ALIASES: dict[str, str] = {
     "tool_args_match": "argument_correctness",
     "step_count": "step_efficiency",
     "cost_budget": "cost_budget_adherence",
+    "policy_adherence": "task_completion",
+    "retry_discipline": "output_correctness",
 }
 
 
