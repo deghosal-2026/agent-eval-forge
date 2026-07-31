@@ -33,7 +33,7 @@ EvalForge invokes agents through adapters. Three invocation modes, subprocess is
 
 ### 1. Subprocess (default)
 
-Agent is an executable. EvalForge passes input via stdin/args and captures stdout.
+Agent is an executable. EvalForge passes the scenario as stdin JSON and captures stdout.
 
 ```yaml
 agent:
@@ -42,7 +42,12 @@ agent:
   timeout_seconds: 120
 ```
 
-Contract: agent receives scenario `input` as first arg or stdin JSON, writes result to stdout.
+Contract: agent receives the full scenario JSON on stdin. EvalForge parses
+stdout as a JSON envelope (`{output, trajectory, cost, status}`); if stdout
+is not valid JSON, it falls back to treating the raw text as the final
+output with an empty trajectory. This lets any existing CLI agent produce a
+valid `RunArtifact` without changes while enabling rich trajectory capture
+for agents that opt in to the envelope format.
 
 ### 2. Python Import
 

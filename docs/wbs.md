@@ -107,6 +107,9 @@
 - [ ] Run full pack (`runner.run_all()`) → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
   - [ ] Run filtered by tag (`runner.run_all(tags=["retrieval"])`)
   - [ ] Save artifacts to `.evalforge/runs/`
+- [ ] Author `scenarios/core-launch.yaml` with all 20 launch scenarios (pulled forward from M4/M5) → [#59](https://github.com/deghosal-2026/agent-eval-forge/issues/59)
+  - [ ] Scenarios 1-5: retrieval, synthesis, extraction, tool args, tool avoidance → [#60](https://github.com/deghosal-2026/agent-eval-forge/issues/60), [#61](https://github.com/deghosal-2026/agent-eval-forge/issues/61), [#62](https://github.com/deghosal-2026/agent-eval-forge/issues/62), [#63](https://github.com/deghosal-2026/agent-eval-forge/issues/63), [#64](https://github.com/deghosal-2026/agent-eval-forge/issues/64)
+  - [ ] Scenarios 6-10: refusal, ambiguity, budget, recovery, coding → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68), [#69](https://github.com/deghosal-2026/agent-eval-forge/issues/69), [#70](https://github.com/deghosal-2026/agent-eval-forge/issues/70), [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71), [#72](https://github.com/deghosal-2026/agent-eval-forge/issues/72)
 - [ ] Write unit tests for all models → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
 - [ ] Write integration tests for all adapter types with mock agents → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
 
@@ -260,26 +263,12 @@
 
 ## M4: Launch Scenarios 1-5
 
-**Goal:** Implement and validate the first half of the launch pack scenarios.
+**Goal:** Validate the first half of the launch pack scenarios with mock agents and fixtures.
+
+> Scenario definitions (`scenarios/core-launch.yaml`, scenarios 1-5) were authored in M1 (pulled forward). M4 focuses on mock agents, tests, and fixture data.
 
 ### Checklist
 
-- [ ] Write scenario pack YAML: `scenarios/core-launch.yaml` → [#82](https://github.com/deghosal-2026/agent-eval-forge/issues/82)
-- [ ] Implement Scenario 1: Single-Tool Factual Retrieval → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68)
-  - [ ] `launch-01-account-policy`: Policy lookup with exact match
-  - [ ] `launch-01-system-status`: Health check with schema validation
-- [ ] Implement Scenario 2: Multi-Tool Retrieval Synthesis → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68)
-  - [ ] `launch-02-cross-source`: Customer summary from two tools
-  - [ ] `launch-02-incident-context`: Incident context assembly
-- [ ] Implement Scenario 3: Structured JSON Extraction → [#62](https://github.com/deghosal-2026/agent-eval-forge/issues/62)
-  - [ ] `launch-03-incident-extraction`: Structured extraction from text
-  - [ ] `launch-03-config-extraction`: Config block extraction from document
-- [ ] Implement Scenario 4: Tool Argument Precision → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96)
-  - [ ] `launch-04-deploy-args`: Precise deployment arguments
-  - [ ] `launch-04-time-range-args`: Time range argument precision
-- [ ] Implement Scenario 5: Tool Avoidance When No Tool Is Needed → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68)
-  - [ ] `launch-05-no-tool-needed`: Direct answer without tools
-  - [ ] `launch-05-simple-calculation`: Simple calculation without tools
 - [ ] Create mock agents for each scenario to verify scoring → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
 - [ ] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
 - [ ] Mock agent that fails each scenario in expected ways → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
@@ -319,25 +308,12 @@
 
 ## M5: Launch Scenarios 6-10
 
-**Goal:** Implement and validate the second half of the launch pack scenarios.
+**Goal:** Validate the second half of the launch pack scenarios with mock agents and fixtures.
+
+> Scenario definitions (`scenarios/core-launch.yaml`, scenarios 6-10) were authored in M1 (pulled forward). M5 focuses on mock agents, tests, fixture data, and end-to-end pack validation.
 
 ### Checklist
 
-- [ ] Implement Scenario 6: Disallowed Tool Refusal → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68)
-  - [ ] `launch-06-prod-delete-refusal`: Refuse destructive tool
-  - [ ] `launch-06-staging-vs-prod-refusal`: Staging vs production boundary
-- [ ] Implement Scenario 7: Ambiguous User Request Clarification → [#69](https://github.com/deghosal-2026/agent-eval-forge/issues/69)
-  - [ ] `launch-07-env-ambiguity`: Environment ambiguity
-  - [ ] `launch-07-scope-ambiguity`: Scope ambiguity
-- [ ] Implement Scenario 8: Budget-Constrained Completion → [#70](https://github.com/deghosal-2026/agent-eval-forge/issues/70)
-  - [ ] `launch-08-step-budget`: Step budget enforcement
-  - [ ] `launch-08-tight-cost-budget`: Tight cost budget
-- [ ] Implement Scenario 9: Graceful Timeout / Recovery → [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71)
-  - [ ] `launch-09-tool-timeout`: Tool timeout recovery
-  - [ ] `launch-09-partial-data-failure`: Partial data failure recovery
-- [ ] Implement Scenario 10: Coding-Agent Regression → [#72](https://github.com/deghosal-2026/agent-eval-forge/issues/72)
-  - [ ] `launch-10-diff-review`: Code diff risk assessment
-  - [ ] `launch-10-test-classify`: Test failure classification
 - [ ] Create mock agents for each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
 - [ ] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
 - [ ] Mock agent that fails in the specific failure mode → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
