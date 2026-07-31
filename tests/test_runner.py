@@ -73,3 +73,64 @@ def test_runner_run_all_tag_filter(tmp_path: Path) -> None:
     # valid_pack.yaml has no tags; a tag filter matching nothing yields no runs
     artifacts = runner.run_all(tags=["retrieval"], run_id="run-tag")
     assert artifacts == []
+
+
+def test_runner_run_index_sanitizes_agent_config(tmp_path: Path) -> None:
+    runner = Runner(
+        agent_config={
+            "type": "python",
+            "module": "fixtures.agents",
+            "timeout_seconds": 10,
+            "api_key": "super-secret",
+        },
+        output_dir=tmp_path,
+    )
+    runner.load_pack(PACK_YAML)
+    runner.run_all(run_id="run-sanitize")
+
+    index = json.loads((tmp_path / "runs" / "run-sanitize" / "run.json").read_text())
+    assert "api_key" not in index["agent"]
+    assert "super-secret" not in index["agent"].values()
+
+
+def test_runner_run_index_records_selected_tags(tmp_path: Path) -> None:
+    runner = Runner(
+        agent_config={"type": "python", "module": "fixtures.agents", "timeout_seconds": 10},
+        output_dir=tmp_path,
+    )
+    runner.load_pack(PACK_YAML)
+    runner.run_all(tags=["retrieval"], run_id="run-tags")
+
+    index = json.loads((tmp_path / "runs" / "run-tags" / "run.json").read_text())
+    assert index["selected_tags"] == ["retrieval"]
+
+
+def test_runner_run_index_has_timestamps(tmp_path: Path) -> None:
+    runner = Runner(
+        agent_config={"type": "python", "module": "fixtures.agents", "timeout_seconds": 10},
+        output_dir=tmp_path,
+    )
+    runner.load_pack(PACK_YAML)
+    runner.run_all(run_id="run-time")
+
+    index = json.loads((tmp_path / "runs" / "run-time" / "run.json").read_text())
+    assert "start" in index["timestamps"]
+    assert "end" in index["timestamps"]
+    assert "duration_ms" in index["timestamps"]
+
+
+def test_runner_run_id_reuse_raises(tmp_path: Path) -> None:
+    runner = Runner(
+        agent_config={"type": "python", "module": "fixtures.agents", "timeout_seconds": 10},
+        output_dir=tmp_path,
+    )
+    runner.load_pack(PACK_YAML)
+    runner.run_all(run_id="run-dup")
+    with pytest.raises(ValueError, match="already exists"):
+        runner.run_all(run_id="run-dup")
+
+
+def test_runner_pack_property_before_load_raises() -> None:
+    runner = Runner(agent_config={"type": "python", "module": "fixtures.agents"})
+    with pytest.raises(RuntimeError, match="load_pack"):
+        _ = runner.pack

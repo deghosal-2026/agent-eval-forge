@@ -176,8 +176,14 @@ def _validate(data: object, path: Path) -> None:
                 msg = f"scenario {sid} metric {name} must be a mapping"
                 raise PackParseError(msg, file=str(path))
             threshold = metric.get("threshold")
-            if threshold is not None and not (0.0 <= threshold <= 1.0):
-                raise PackParseError(
-                    f"scenario {sid} metric {name} threshold out of range: {threshold}",
-                    file=str(path),
-                )
+            if threshold is not None:
+                if not isinstance(threshold, (int, float)) or isinstance(threshold, bool):
+                    raise PackParseError(
+                        f"scenario {sid} metric {name} threshold must be a number: {threshold!r}",
+                        file=str(path),
+                    )
+                if not (0.0 <= threshold <= 1.0):
+                    raise PackParseError(
+                        f"scenario {sid} metric {name} threshold out of range: {threshold}",
+                        file=str(path),
+                    )

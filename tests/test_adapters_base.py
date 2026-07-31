@@ -1,8 +1,25 @@
 import pytest
 
-from evalforge.adapters.base import build_invocation_payload, parse_agent_stdout
+from evalforge.adapters.base import (
+    Adapter,
+    _sanitize_agent,
+    build_invocation_payload,
+    parse_agent_stdout,
+)
 from evalforge.models.errors import AdapterError
 from evalforge.models.pack import Budget, Scenario, Tool
+
+
+class _RawEnvelopeAdapter(Adapter):
+    """Adapter that returns a fixed raw envelope from _invoke."""
+
+    name = "raw"
+
+    def __init__(self, envelope: dict) -> None:
+        self._envelope = envelope
+
+    def _invoke(self, payload: dict, config: dict) -> dict:
+        return self._envelope
 
 
 def make_scenario() -> Scenario:
@@ -51,3 +68,32 @@ def test_parse_agent_stdout_raw_text_fallback() -> None:
 def test_parse_agent_stdout_strict_raises() -> None:
     with pytest.raises(AdapterError):
         parse_agent_stdout("not json", strict=True)
+
+
+def test_run_malformed_envelope_status_marks_error() -> None:
+    adapter = _RawEnvelopeAdapter({"status": "garbage", "output": {"final": "hi"}})
+    artifact = adapter.run(make_scenario(), {"run_id": "run-1"})
+    assert artifact.status == "error"
+    assert artifact.error is not None
+
+
+def test_run_envelope_with_str_output_marks_error() -> None:
+    adapter = _RawEnvelopeAdapter({"output": "hello"})
+    artifact = adapter.run(make_scenario(), {"run_id": "run-1"})
+    assert artifact.status == "error"
+
+
+def test_run_valid_envelope_still_completes() -> None:
+    adapter = _RawEnvelopeAdapter(
+        {"status": "completed", "output": {"final": "hi"}, "trajectory": {"steps": []}}
+    )
+    artifact = adapter.run(make_scenario(), {"run_id": "run-1"})
+    assert artifact.status == "completed"
+    assert artifact.output.final == "hi"
+
+
+def test_sanitize_agent_strips_secrets() -> None:
+    cleaned = _sanitize_agent(
+        {"model": "claude", "api_key": "k", "token": "t", "password": "p", "secret": "s"}
+    )
+    assert cleaned == {"model": "claude"}

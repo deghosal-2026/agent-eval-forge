@@ -19,10 +19,12 @@ from __future__ import annotations
 import hashlib
 import json
 import secrets
+import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 
+from evalforge.adapters.base import _sanitize_agent
 from evalforge.adapters.factory import create_adapter
 from evalforge.loading.pack_loader import load_pack
 from evalforge.models.artifact import RunArtifact
@@ -40,6 +42,16 @@ def _pack_hash(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()[:16]
 
 
+def _now_iso() -> str:
+    """Current UTC time as an ISO-8601 string."""
+    return datetime.now(UTC).isoformat()
+
+
+def _now_ms() -> int:
+    """Current time as a Unix epoch timestamp in milliseconds."""
+    return int(time.time() * 1000)
+
+
 class Runner:
     """Runs scenario packs against an agent via the configured adapter."""
 
@@ -53,11 +65,14 @@ class Runner:
         self.adapter = create_adapter(agent_config)
         self._pack: ScenarioPack | None = None
         self._pack_path: Path | None = None
+        self._pack_hash_value: str | None = None
 
     def load_pack(self, path: str | Path) -> ScenarioPack:
         """Parse and validate a pack; store it for subsequent runs."""
         self._pack = load_pack(path)
-        self._pack_path = Path(path)
+        path = Path(path)
+        self._pack_path = path
+        self._pack_hash_value = _pack_hash(path)
         return self._pack
 
     @property
@@ -89,8 +104,10 @@ class Runner:
             tag_set = set(tags)
             scenarios = [s for s in scenarios if tag_set.intersection(s.tags)]
         rid = run_id or generate_run_id()
+        start_iso = _now_iso()
+        start_ms = _now_ms()
         artifacts = [self.run_one(s.id, run_id=rid) for s in scenarios]
-        self._save_run(rid, artifacts, pack, scenarios)
+        self._save_run(rid, artifacts, pack, scenarios, tags, start_iso, start_ms)
         return artifacts
 
     def _save_run(
@@ -99,9 +116,14 @@ class Runner:
         artifacts: list[RunArtifact],
         pack: ScenarioPack,
         scenarios: list[Any],
+        tags: list[str] | None,
+        start_iso: str,
+        start_ms: int,
     ) -> None:
         run_dir = self.output_dir / "runs" / run_id
         artifacts_dir = run_dir / "artifacts"
+        if (run_dir / "run.json").exists():
+            raise ValueError(f"run already exists: {run_id}")
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
         for artifact in artifacts:
@@ -116,14 +138,15 @@ class Runner:
                 "description": pack.pack.description,
                 "min_evalforge": pack.pack.min_evalforge,
             },
-            "pack_hash": _pack_hash(self._pack_path) if self._pack_path else None,
-            "agent": self.agent_config,
-            "selected_tags": None,
-            "scenario_ids": [s.id for s in scenarios],
-            "artifacts": {
-                a.scenario_id: f"artifacts/{a.scenario_id}.json" for a in artifacts
+            "pack_hash": self._pack_hash_value,
+            "agent": _sanitize_agent(self.agent_config),
+            "selected_tags": tags,
+            "timestamps": {
+                "start": start_iso,
+                "end": _now_iso(),
+                "duration_ms": _now_ms() - start_ms,
             },
+            "scenario_ids": [s.id for s in scenarios],
+            "artifacts": {a.scenario_id: f"artifacts/{a.scenario_id}.json" for a in artifacts},
         }
-        (run_dir / "run.json").write_text(
-            json.dumps(index, indent=2), encoding="utf-8"
-        )
+        (run_dir / "run.json").write_text(json.dumps(index, indent=2), encoding="utf-8")

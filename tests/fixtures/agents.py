@@ -9,6 +9,7 @@ context in tests):
 - ``slow``: sleep 30s then return (exercises the timeout path).
 """
 
+import os
 import time
 
 
@@ -21,6 +22,8 @@ def run(payload: dict) -> dict | str:
     if mode == "slow":
         time.sleep(30)
         return "too slow"
+    if mode == "hard_exit":
+        os._exit(1)
     return {
         "schema_version": "evalforge.run_envelope.v1",
         "status": "completed",

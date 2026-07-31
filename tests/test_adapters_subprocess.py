@@ -73,3 +73,18 @@ def test_subprocess_strict_output_error() -> None:
         {"command": AGENT, "run_id": "run-1", "timeout_seconds": 10, "strict_output": True},
     )
     assert artifact.status == "error"
+
+
+def test_subprocess_missing_command_marks_error() -> None:
+    adapter = SubprocessAdapter()
+    artifact = adapter.run(make_scenario(), {"run_id": "run-1", "timeout_seconds": 10})
+    assert artifact.status == "error"
+
+
+def test_subprocess_launch_failure_marks_error() -> None:
+    adapter = SubprocessAdapter()
+    artifact = adapter.run(
+        make_scenario(),
+        {"command": "/nonexistent/agent", "run_id": "run-1", "timeout_seconds": 10},
+    )
+    assert artifact.status == "error"

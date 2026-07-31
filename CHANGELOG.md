@@ -19,6 +19,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Runner with run_one/run_all, tag filtering, and `.evalforge/runs/<run_id>/` storage
   - `scenarios/core-launch.yaml` with all 20 launch scenarios
 
+### Fixed
+
+- Malformed agent envelopes (invalid status, non-dict output) normalize to `error` artifacts
+  instead of aborting the run
+- Run index sanitizes agent config (no secrets) and records selected tag filter + timestamps
+- Reusing a run id now raises instead of silently overwriting artifacts
+- Python-import adapter no longer hangs if the worker process dies abnormally
+- Non-numeric metric thresholds raise a clear `PackParseError` instead of `TypeError`
+
+
 - M0: Project scaffold
   - Python package structure under `src/evalforge/` (models, adapters, scoring, baselines, comparison, cli)
   - `pyproject.toml` with dependencies, dev extras, and `evalforge` console entry point

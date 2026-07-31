@@ -47,3 +47,9 @@ def test_python_import_timeout() -> None:
     config["timeout_seconds"] = 1
     artifact = adapter.run(make_scenario(mode="slow"), config)
     assert artifact.status == "timeout"
+
+
+def test_python_import_worker_hard_exit_marks_error() -> None:
+    adapter = PythonImportAdapter()
+    artifact = adapter.run(make_scenario(mode="hard_exit"), module_config(mode="hard_exit"))
+    assert artifact.status == "error"

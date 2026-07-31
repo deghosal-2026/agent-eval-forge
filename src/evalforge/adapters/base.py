@@ -121,7 +121,18 @@ class Adapter(ABC):
                 scenario, run_id, "error", str(exc), config, start_iso, start_ms
             )
 
-        return _artifact_from_envelope(envelope, scenario, run_id, config, start_iso, start_ms)
+        try:
+            return _artifact_from_envelope(envelope, scenario, run_id, config, start_iso, start_ms)
+        except Exception as exc:  # a malformed envelope must not abort the run
+            return _artifact_for_error(
+                scenario,
+                run_id,
+                "error",
+                f"invalid agent envelope: {exc}",
+                config,
+                start_iso,
+                start_ms,
+            )
 
     @abstractmethod
     def _invoke(self, payload: dict[str, Any], config: dict[str, Any]) -> str | dict[str, Any]:
@@ -212,8 +223,4 @@ def _sanitize_agent(config: dict[str, Any]) -> dict[str, Any]:
     tokens must never be persisted (spec §"Run Index").
     """
     secret_keys = {"api_key", "token", "secret", "password"}
-    return {
-        key: value
-        for key, value in config.items()
-        if key not in secret_keys
-    }
+    return {key: value for key, value in config.items() if key not in secret_keys}

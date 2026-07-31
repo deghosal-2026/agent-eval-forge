@@ -43,6 +43,11 @@ def test_threshold_out_of_range_raises() -> None:
         load_pack(FIXTURES / "bad_threshold_pack.yaml")
 
 
+def test_string_threshold_raises() -> None:
+    with pytest.raises(PackParseError, match="threshold"):
+        load_pack(FIXTURES / "bad_threshold_type_pack.yaml")
+
+
 def test_malformed_yaml_raises_with_line() -> None:
     with pytest.raises(PackParseError) as excinfo:
         load_pack(FIXTURES / "malformed_pack.yaml")

@@ -57,10 +57,17 @@ class PythonImportAdapter(Adapter):
                 proc.terminate()
                 proc.join()
                 raise AgentTimeoutError(f"agent exceeded {timeout}s timeout")
+            if proc.exitcode != 0:
+                # The worker died without sending a result (e.g. os._exit,
+                # segfault, SIGKILL); waiting on the queue would hang forever.
+                raise AdapterError(f"agent process exited with code {proc.exitcode}")
         except multiprocessing.ProcessError as exc:
             raise AdapterError(f"agent process failed: {exc}") from exc
 
-        status, value = queue.get()
+        try:
+            status, value = queue.get(timeout=timeout)
+        except Exception as exc:
+            raise AdapterError(f"agent produced no result: {exc}") from exc
         if status == "error":
             raise AdapterError(str(value))
         if isinstance(value, str):

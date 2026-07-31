@@ -1,0 +1,9 @@
+pack:
+  name: "badthresholdtype"
+  version: "1.0.0"
+scenarios:
+  - id: "sc-1"
+    title: "one"
+    input: "i"
+    metrics:
+      task_completion: {threshold: "0.8"}
