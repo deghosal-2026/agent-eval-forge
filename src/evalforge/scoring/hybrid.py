@@ -36,5 +36,5 @@ class HybridScorer:
             return gate_result
         if gate_result.score is not None and gate_result.score == 0.0:
             return gate_result
-        setattr(judge_scorer, "judge", self.judge)
+        judge_scorer.judge = self.judge  # type: ignore[union-attr]
         return judge_scorer.score(artifact, scenario, metric_config)
