@@ -41,16 +41,30 @@ def test_hybrid_gate_pass_skips_judge() -> None:
 
 
 def test_hybrid_gate_fail_skips_judge() -> None:
+    gate = get_scorer("policy_adherence_gate")
+    assert gate is not None
+    hybrid = HybridScorer("policy_adherence", gate, MockJudge(score=0.0))
+    art = _artifact()
+    step = type("Step", (), {"type": "tool_call", "tool": "danger", "args": {}, "duration_ms": 1})()
+    art.trajectory = [step]
+    sc = _scenario(allowed=["t"])
+    sc.disallowed_tools = [Tool(name="danger")]
+    result = hybrid.score(art, sc, {"threshold": 1.0})
+    assert result.source == "deterministic"  # gate clearly failed, judge skipped
+    assert result.score == 0.0
+
+
+def test_hybrid_gate_inconclusive_falls_back_to_judge() -> None:
     gate = get_scorer("retry_discipline_gate")
     assert gate is not None
-    hybrid = HybridScorer("retry_discipline", gate, MockJudge(score=0.0))
+    hybrid = HybridScorer("retry_discipline", gate, MockJudge(score=0.9))
     art = _artifact()
     step = type("Step", (), {"type": "tool_call", "tool": "a", "args": {}, "duration_ms": 1})
     art.trajectory = [step(), step(), step()]
     sc = _scenario(allowed=["a", "b"])
     result = hybrid.score(art, sc, {"threshold": 1.0})
-    assert result.source == "deterministic"
-    assert result.score < 1.0
+    assert result.source == "judge"  # partial gate score is inconclusive → judge decides
+    assert result.score == 0.9
 
 
 def test_hybrid_no_scorer_in_registry() -> None:

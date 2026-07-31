@@ -30,8 +30,10 @@ class HybridScorer:
             judge_scorer = judge_scorer_cls()
             self._judge_scorer = judge_scorer
         gate_result = self.gate.score(artifact, scenario, metric_config)
-        if gate_result.score is not None:
+        threshold = metric_config.get("threshold", 0.5)
+        if gate_result.score is not None and gate_result.score >= threshold:
             return gate_result
-        if hasattr(judge_scorer, "judge"):
-            judge_scorer.judge = self.judge
+        if gate_result.score is not None and gate_result.score == 0.0:
+            return gate_result
+        setattr(judge_scorer, "judge", self.judge)
         return judge_scorer.score(artifact, scenario, metric_config)
