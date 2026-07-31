@@ -1,4 +1,16 @@
-"""Comparison report — JSON and Markdown report generation."""
+"""Comparison report — JSON and Markdown report generation (spec §"Report Generation").
+
+Produces two output formats from a ComparisonResult:
+- JSON: Machine-readable, CI-friendly, suitable for automated processing.
+- Markdown: Human-readable, designed for PR comments and CI summary output.
+
+Both formats include:
+- Summary statistics (total, regressed, improved, new failures/passes)
+- Per-scenario deltas with status classification
+- Per-family/tag deltas
+- Cost deltas (USD)
+- Safety violation reporting
+"""
 
 from __future__ import annotations
 
@@ -11,12 +23,30 @@ from evalforge.scoring.result import RunScore
 
 @dataclass
 class ComparisonReport:
+    """Formats a comparison result as JSON or Markdown.
+
+    Attributes:
+        baseline_name: Human-readable name of the baseline (e.g. "v1.0.0").
+        candidate_name: Human-readable name of the candidate (e.g. "PR-42").
+        result: The ComparisonResult containing all delta data.
+        candidate_score: The RunScore from the candidate run, used for
+            exit code and safety violation reporting.
+    """
+
     baseline_name: str
     candidate_name: str
     result: ComparisonResult
     candidate_score: RunScore
 
     def to_json(self) -> dict[str, Any]:
+        """Generate a JSON-serializable dict of the comparison report.
+
+        The output structure matches the spec's §"Comparison Model" schema:
+        - baseline_name, candidate_name: identifiers for the two sides
+        - aggregate: top-level summary with totals, deltas, and exit code
+        - scenario_deltas: per-scenario breakdown
+        - family_deltas: per-family/tag breakdown
+        """
         return {
             "baseline_name": self.baseline_name,
             "candidate_name": self.candidate_name,
@@ -38,6 +68,18 @@ class ComparisonReport:
         }
 
     def to_markdown(self) -> str:
+        """Generate a human-readable Markdown report.
+
+        The report includes:
+        1. Header with baseline → candidate identity
+        2. Summary table with aggregate statistics
+        3. Per-scenario delta table with regression/improvement labels
+        4. Per-family delta table (if any families exist)
+        5. Safety violations highlighted (if any)
+        6. Cost delta in USD
+
+        Designed to be posted as a CI summary comment or PR comment.
+        """
         lines: list[str] = []
         lines.append(f"# Comparison Report: {self.baseline_name} \u2192 {self.candidate_name}")
         lines.append("")

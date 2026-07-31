@@ -11,16 +11,23 @@ from evalforge.scoring.registry import get_scorer
 
 def _artifact() -> RunArtifact:
     return RunArtifact(
-        id="r1", scenario_id="sc-1",
+        id="r1",
+        scenario_id="sc-1",
         timestamp=RunTimestamps(start="x", end="y", duration_ms=0),
         output=RunOutput(final="ok", structured=None),
-        trajectory=[], cost=Cost(), status="completed", error=None, agent={},
+        trajectory=[],
+        cost=Cost(),
+        status="completed",
+        error=None,
+        agent={},
     )
 
 
 def _scenario(allowed: list[str] | None = None) -> Scenario:
     return Scenario(
-        id="sc-1", title="T", input="in",
+        id="sc-1",
+        title="T",
+        input="in",
         allowed_tools=[Tool(name=t) for t in (allowed or ["t"])],
         budget=Budget(max_steps=5),
         expected=Expected(type="exact", value="ok"),

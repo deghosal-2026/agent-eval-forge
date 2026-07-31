@@ -16,13 +16,22 @@ class ArgumentCorrectnessScorer(Scorer):
     name = "argument_correctness"
     category = "correctness"
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         expected = scenario.expected
         if expected is None or expected.args is None:
-            return ScoreResult(metric=self.name, score=1.0, threshold=1.0,
-                               passed=True, category=self.category, blocking=False,
-                               detail={}, source="deterministic", error=None)
+            return ScoreResult(
+                metric=self.name,
+                score=1.0,
+                threshold=1.0,
+                passed=True,
+                category=self.category,
+                blocking=False,
+                detail={},
+                source="deterministic",
+                error=None,
+            )
         exp_args = expected.args
         exp_tool = expected.tool or ""
         matches = 0
@@ -41,8 +50,13 @@ class ArgumentCorrectnessScorer(Scorer):
         score = matches / total if total else 1.0
         threshold = metric_config.get("threshold", 1.0)
         return ScoreResult(
-            metric=self.name, score=score, threshold=threshold,
-            passed=score >= threshold, category=self.category, blocking=False,
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=score >= threshold,
+            category=self.category,
+            blocking=False,
             detail={"expected_args": exp_args, "expected_tool": exp_tool},
-            source="deterministic", error=None,
+            source="deterministic",
+            error=None,
         )

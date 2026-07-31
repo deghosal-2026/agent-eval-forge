@@ -1,36 +1,57 @@
 import pytest
 
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
-from evalforge.models.pack import Budget, Expected, Metric, PackMetadata, Scenario, ScenarioPack, Tool
-from evalforge.scoring.engine import ScoringEngine
-from evalforge.scoring.judge.mock import MockJudge
-from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
+from evalforge.models.pack import (
+    Budget,
+    Expected,
+    Metric,
+    PackMetadata,
+    Scenario,
+    ScenarioPack,
+    Tool,
+)
 
 # Import scorer modules to register them
-from evalforge.scoring.deterministic import gates  # noqa: F401
-from evalforge.scoring.deterministic import tools  # noqa: F401
+from evalforge.scoring.deterministic import (
+    gates,  # noqa: F401
+    tools,  # noqa: F401
+)
+from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.judge import scorers  # noqa: F401
+from evalforge.scoring.judge.mock import MockJudge
+from evalforge.scoring.result import RunScore
 
 
 def _pack() -> ScenarioPack:
     return ScenarioPack(
         pack=PackMetadata(name="test", version="1.0.0"),
         scenarios=[
-            Scenario(id="sc-1", title="T", input="i", goal="g",
-                     allowed_tools=[Tool(name="a")], budget=Budget(max_steps=5),
-                     expected=Expected(type="exact", value="ok"),
-                     metrics={"tool_correctness": Metric(threshold=1.0)},
-                     tags=["retrieval"]),
+            Scenario(
+                id="sc-1",
+                title="T",
+                input="i",
+                goal="g",
+                allowed_tools=[Tool(name="a")],
+                budget=Budget(max_steps=5),
+                expected=Expected(type="exact", value="ok"),
+                metrics={"tool_correctness": Metric(threshold=1.0)},
+                tags=["retrieval"],
+            ),
         ],
     )
 
 
 def _artifact(final: str = "ok", scenario_id: str = "sc-1") -> RunArtifact:
     return RunArtifact(
-        id=f"r1-{scenario_id}", scenario_id=scenario_id,
+        id=f"r1-{scenario_id}",
+        scenario_id=scenario_id,
         timestamp=RunTimestamps(start="x", end="y", duration_ms=0),
         output=RunOutput(final=final, structured=None),
-        trajectory=[], cost=Cost(), status="completed", error=None, agent={},
+        trajectory=[],
+        cost=Cost(),
+        status="completed",
+        error=None,
+        agent={},
     )
 
 
@@ -66,8 +87,6 @@ def test_score_run_exit_code_0_all_pass() -> None:
 
 
 def test_score_run_exit_code_4_safety_violation() -> None:
-    from evalforge.scoring.deterministic.tools import ZeroDisallowedActionsScorer
-    from evalforge.models.artifact import TrajectoryStep
     pack = _pack()
     pack.scenarios[0].disallowed_tools = [Tool(name="danger")]
     pack.scenarios[0].metrics = {"zero_disallowed_actions": Metric(threshold=1.0)}
@@ -112,10 +131,16 @@ def test_score_hybrid_metric_with_judge() -> None:
 def test_score_run_aggregates_two_scenarios() -> None:
     pack = _pack()
     pack.scenarios.append(
-        Scenario(id="sc-2", title="T2", input="i2", goal="g2",
-                 allowed_tools=[Tool(name="a")], budget=Budget(max_steps=5),
-                 expected=Expected(type="exact", value="ok"),
-                 metrics={"tool_correctness": Metric(threshold=1.0)}),
+        Scenario(
+            id="sc-2",
+            title="T2",
+            input="i2",
+            goal="g2",
+            allowed_tools=[Tool(name="a")],
+            budget=Budget(max_steps=5),
+            expected=Expected(type="exact", value="ok"),
+            metrics={"tool_correctness": Metric(threshold=1.0)},
+        ),
     )
     engine = ScoringEngine(pack)
     arts = [_artifact(), _artifact(scenario_id="sc-2")]

@@ -13,8 +13,9 @@ class MockJudge(JudgeClient):
         self._score = score
         self._rationale = rationale
 
-    def judge(self, prompt: str, *, max_tokens: int = 512,
-              temperature: float = 0.0) -> JudgeVerdict:
+    def judge(
+        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.0
+    ) -> JudgeVerdict:
         return JudgeVerdict(
             score=self._score,
             rationale=self._rationale or f"mock verdict for {len(prompt)} chars",

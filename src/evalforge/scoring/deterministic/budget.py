@@ -16,8 +16,9 @@ class StepEfficiencyScorer(Scorer):
     name = "step_efficiency"
     category = "efficiency"
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         budget = scenario.budget
         max_steps = budget.max_steps if budget else None
         total = len(artifact.trajectory or [])
@@ -27,10 +28,15 @@ class StepEfficiencyScorer(Scorer):
             score = max(0.0, 1.0 - max(0, total - max_steps) / max_steps)
         threshold = metric_config.get("threshold", 0.7)
         return ScoreResult(
-            metric=self.name, score=score, threshold=threshold,
-            passed=score >= threshold, category=self.category, blocking=False,
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=score >= threshold,
+            category=self.category,
+            blocking=False,
             detail={"steps": total, "max_steps": max_steps},
-            source="deterministic", error=None,
+            source="deterministic",
+            error=None,
         )
 
 
@@ -39,8 +45,9 @@ class CostBudgetAdherenceScorer(Scorer):
     name = "cost_budget_adherence"
     category = "efficiency"
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         budget = scenario.budget
         max_cost = budget.max_cost_usd if budget else None
         actual = artifact.cost.cost_usd if artifact.cost else 0.0
@@ -52,8 +59,13 @@ class CostBudgetAdherenceScorer(Scorer):
             score = max(0.0, 1.0 - max(0.0, ratio - 1.0))
         threshold = metric_config.get("threshold", 0.7)
         return ScoreResult(
-            metric=self.name, score=score, threshold=threshold,
-            passed=score >= threshold, category=self.category, blocking=False,
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=score >= threshold,
+            category=self.category,
+            blocking=False,
             detail={"actual_cost_usd": actual, "max_cost_usd": max_cost},
-            source="deterministic", error=None,
+            source="deterministic",
+            error=None,
         )

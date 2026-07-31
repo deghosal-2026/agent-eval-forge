@@ -13,15 +13,19 @@ from evalforge.scoring.result import JudgeVerdict
 class OllamaClient(JudgeClient):
     name = "ollama"
 
-    def __init__(self, model: str = "llama3.2",
-                 base_url: str = "http://localhost:11434",
-                 timeout: float = 60.0) -> None:
+    def __init__(
+        self,
+        model: str = "llama3.2",
+        base_url: str = "http://localhost:11434",
+        timeout: float = 60.0,
+    ) -> None:
         self.model = model
         self.base_url = base_url.rstrip("/")
         self.timeout = timeout
 
-    def judge(self, prompt: str, *, max_tokens: int = 512,
-              temperature: float = 0.0) -> JudgeVerdict:
+    def judge(
+        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.0
+    ) -> JudgeVerdict:
         resp = httpx.post(
             f"{self.base_url}/api/chat",
             json={

@@ -14,5 +14,6 @@ class JudgeClient(ABC):
     name: str = ""
 
     @abstractmethod
-    def judge(self, prompt: str, *, max_tokens: int = 512,
-              temperature: float = 0.0) -> JudgeVerdict: ...
+    def judge(
+        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.0
+    ) -> JudgeVerdict: ...

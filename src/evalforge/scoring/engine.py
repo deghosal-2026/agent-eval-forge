@@ -1,7 +1,5 @@
 from __future__ import annotations
 
-from typing import Any
-
 from evalforge.models.artifact import RunArtifact
 from evalforge.models.pack import Scenario, ScenarioPack
 from evalforge.scoring.hybrid import HybridScorer
@@ -86,7 +84,7 @@ class ScoringEngine:
                     continue
                 scorer = scorer_cls()
                 if judge is not None:
-                    setattr(scorer, "judge", judge)
+                    scorer.judge = judge  # type: ignore[attr-defined]
                 try:
                     result = scorer.score(artifact, scenario, config)
                 except Exception as exc:

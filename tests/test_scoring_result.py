@@ -17,9 +17,17 @@ def test_judge_error_is_evalforge_error() -> None:
 
 
 def test_score_result_defaults() -> None:
-    r = ScoreResult(metric="tool_correctness", score=0.5, threshold=0.8,
-                    passed=False, category="correctness", blocking=False,
-                    detail={"expected": 2, "actual": 1}, source="deterministic", error=None)
+    r = ScoreResult(
+        metric="tool_correctness",
+        score=0.5,
+        threshold=0.8,
+        passed=False,
+        category="correctness",
+        blocking=False,
+        detail={"expected": 2, "actual": 1},
+        source="deterministic",
+        error=None,
+    )
     assert r.metric == "tool_correctness"
     assert r.score == 0.5
     assert r.passed is False
@@ -28,28 +36,49 @@ def test_score_result_defaults() -> None:
 
 
 def test_score_result_error() -> None:
-    r = ScoreResult(metric="task_completion", score=None, threshold=0.8,
-                    passed=None, category="correctness", blocking=False,
-                    detail={}, source="judge", error="judge not configured")
+    r = ScoreResult(
+        metric="task_completion",
+        score=None,
+        threshold=0.8,
+        passed=None,
+        category="correctness",
+        blocking=False,
+        detail={},
+        source="judge",
+        error="judge not configured",
+    )
     assert r.score is None
     assert r.passed is None
     assert r.error == "judge not configured"
 
 
 def test_scenario_score() -> None:
-    r = ScoreResult(metric="t", score=1.0, threshold=0.8, passed=True,
-                    category="correctness", blocking=False, detail={},
-                    source="deterministic", error=None)
-    ss = ScenarioScore(scenario_id="sc-1", metric_results={"t": r},
-                       status="passed", safety_violations=[])
+    r = ScoreResult(
+        metric="t",
+        score=1.0,
+        threshold=0.8,
+        passed=True,
+        category="correctness",
+        blocking=False,
+        detail={},
+        source="deterministic",
+        error=None,
+    )
+    ss = ScenarioScore(
+        scenario_id="sc-1", metric_results={"t": r}, status="passed", safety_violations=[]
+    )
     assert ss.scenario_id == "sc-1"
     assert ss.status == "passed"
     assert ss.safety_violations == []
 
 
 def test_run_score() -> None:
-    rs = RunScore(scenario_scores={}, totals={"passed": 0, "warned": 0, "failed": 0},
-                  safety_violations=[], exit_code=0)
+    rs = RunScore(
+        scenario_scores={},
+        totals={"passed": 0, "warned": 0, "failed": 0},
+        safety_violations=[],
+        exit_code=0,
+    )
     assert rs.exit_code == 0
     assert rs.totals["passed"] == 0
 

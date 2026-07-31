@@ -17,13 +17,22 @@ class SchemaValidityScorer(Scorer):
     name = "schema_validity"
     category = "correctness"
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         expected = scenario.expected
         if expected is None or expected.schema is None:
-            return ScoreResult(metric=self.name, score=1.0, threshold=1.0,
-                               passed=True, category=self.category, blocking=False,
-                               detail={}, source="deterministic", error=None)
+            return ScoreResult(
+                metric=self.name,
+                score=1.0,
+                threshold=1.0,
+                passed=True,
+                category=self.category,
+                blocking=False,
+                detail={},
+                source="deterministic",
+                error=None,
+            )
         output = artifact.output.final or ""
         required_keys = expected.schema if isinstance(expected.schema, dict) else {}
         try:
@@ -35,11 +44,18 @@ class SchemaValidityScorer(Scorer):
         score = found / total
         threshold = metric_config.get("threshold", 1.0)
         return ScoreResult(
-            metric=self.name, score=score, threshold=threshold,
-            passed=score >= threshold, category=self.category, blocking=False,
-            detail={"required": list(required_keys), "found": list(
-                k for k in required_keys if isinstance(parsed, dict) and k in parsed
-            )}, source="deterministic", error=None,
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=score >= threshold,
+            category=self.category,
+            blocking=False,
+            detail={
+                "required": list(required_keys),
+                "found": list(k for k in required_keys if isinstance(parsed, dict) and k in parsed),
+            },
+            source="deterministic",
+            error=None,
         )
 
 
@@ -48,13 +64,22 @@ class FieldCorrectnessScorer(Scorer):
     name = "field_correctness"
     category = "correctness"
 
-    def score(self, artifact: RunArtifact, scenario: Scenario,
-              metric_config: dict[str, Any]) -> ScoreResult:
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
         expected = scenario.expected
         if expected is None or expected.schema is None:
-            return ScoreResult(metric=self.name, score=1.0, threshold=1.0,
-                               passed=True, category=self.category, blocking=False,
-                               detail={}, source="deterministic", error=None)
+            return ScoreResult(
+                metric=self.name,
+                score=1.0,
+                threshold=1.0,
+                passed=True,
+                category=self.category,
+                blocking=False,
+                detail={},
+                source="deterministic",
+                error=None,
+            )
         required_keys = expected.schema if isinstance(expected.schema, dict) else {}
         output = artifact.output.structured or artifact.output.final or ""
         parsed = output if isinstance(output, dict) else {}
@@ -63,9 +88,16 @@ class FieldCorrectnessScorer(Scorer):
         score = found / total
         threshold = metric_config.get("threshold", 1.0)
         return ScoreResult(
-            metric=self.name, score=score, threshold=threshold,
-            passed=score >= threshold, category=self.category, blocking=False,
-            detail={"required": list(required_keys), "found": list(
-                k for k in required_keys if k in parsed
-            )}, source="deterministic", error=None,
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=score >= threshold,
+            category=self.category,
+            blocking=False,
+            detail={
+                "required": list(required_keys),
+                "found": list(k for k in required_keys if k in parsed),
+            },
+            source="deterministic",
+            error=None,
         )

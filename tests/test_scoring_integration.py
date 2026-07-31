@@ -2,10 +2,10 @@
 
 from pathlib import Path
 
+from evalforge.models.pack import ScenarioPack
 from evalforge.runner import Runner
 from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.judge.mock import MockJudge
-from evalforge.models.pack import ScenarioPack
 
 LAUNCH_PACK = Path(__file__).parent.parent / "scenarios" / "core-launch.yaml"
 AGENT_CONFIG = {"type": "python", "module": "fixtures.agents", "timeout_seconds": 10}

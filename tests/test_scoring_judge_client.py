@@ -25,5 +25,6 @@ def test_mock_judge_default_verdict() -> None:
 
 def test_openai_client_name() -> None:
     from evalforge.scoring.judge.openai import OpenAIClient
+
     client = OpenAIClient(api_key="test")
     assert client.name == "openai"

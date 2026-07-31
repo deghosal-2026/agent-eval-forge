@@ -1,9 +1,18 @@
+"""Tests for ComparisonReport: JSON and Markdown output generation.
+
+Covers:
+- JSON output structure and field presence
+- Markdown output includes baseline/candidate names, summary, and scenario info
+- Safety violations appear prominently in the markdown output
+"""
+
 from evalforge.comparison.engine import ComparisonResult
 from evalforge.comparison.report import ComparisonReport
 from evalforge.scoring.result import RunScore
 
 
 def _make_result() -> ComparisonResult:
+    """Factory helper: a ComparisonResult with one regression and one improvement."""
     return ComparisonResult(
         scenario_deltas={
             "sc-1": {
@@ -31,6 +40,7 @@ def _make_result() -> ComparisonResult:
 
 
 def _run_score() -> RunScore:
+    """Factory helper: a RunScore with no safety violations, exit code 1."""
     return RunScore(
         scenario_scores={},
         totals={"passed": 1, "warned": 0, "failed": 1},
@@ -40,6 +50,7 @@ def _run_score() -> RunScore:
 
 
 def test_report_to_json() -> None:
+    """JSON output should include baseline/candidate names, aggregates, and deltas."""
     report = ComparisonReport(
         baseline_name="v1.0.0",
         candidate_name="v1.1.0",
@@ -55,6 +66,7 @@ def test_report_to_json() -> None:
 
 
 def test_report_to_markdown() -> None:
+    """Markdown output should contain identifying info, summary, and scenario data."""
     report = ComparisonReport(
         baseline_name="v1.0.0",
         candidate_name="v1.1.0",
@@ -70,6 +82,7 @@ def test_report_to_markdown() -> None:
 
 
 def test_report_markdown_contains_safety_violations() -> None:
+    """Markdown should prominently display safety violations when present."""
     score = RunScore(
         scenario_scores={},
         totals={"passed": 0, "warned": 0, "failed": 1},

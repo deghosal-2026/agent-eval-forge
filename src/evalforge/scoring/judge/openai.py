@@ -14,19 +14,24 @@ from evalforge.scoring.result import JudgeVerdict
 class OpenAIClient(JudgeClient):
     name = "openai"
 
-    def __init__(self, api_key: str, model: str = "gpt-4o-mini",
-                 base_url: str | None = None, timeout: float = 30.0) -> None:
+    def __init__(
+        self,
+        api_key: str,
+        model: str = "gpt-4o-mini",
+        base_url: str | None = None,
+        timeout: float = 30.0,
+    ) -> None:
         self.api_key = api_key
         self.model = model
         self.base_url = (base_url or "https://api.openai.com/v1").rstrip("/")
         self.timeout = timeout
 
-    def judge(self, prompt: str, *, max_tokens: int = 512,
-              temperature: float = 0.0) -> JudgeVerdict:
+    def judge(
+        self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.0
+    ) -> JudgeVerdict:
         resp = httpx.post(
             f"{self.base_url}/chat/completions",
-            headers={"Authorization": f"Bearer {self.api_key}",
-                     "Content-Type": "application/json"},
+            headers={"Authorization": f"Bearer {self.api_key}", "Content-Type": "application/json"},
             json={
                 "model": self.model,
                 "messages": [{"role": "user", "content": prompt}],
