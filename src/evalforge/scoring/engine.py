@@ -18,12 +18,11 @@ class ScoringEngine:
 
     def _validate_metrics(self) -> None:
         for scenario in self.pack.scenarios:
-            for name in (scenario.metrics or {}):
+            for name in scenario.metrics or {}:
                 if get_scorer(name) is None and name not in _HYBRID_METRICS:
                     raise ValueError(f"unknown metric: {name}")
 
-    def score_run(self, artifacts: list[RunArtifact],
-                  judge: JudgeClient | None = None) -> RunScore:
+    def score_run(self, artifacts: list[RunArtifact], judge: JudgeClient | None = None) -> RunScore:
         self._validate_metrics()
         artifact_map = {a.scenario_id: a for a in artifacts}
         scenario_scores: dict[str, ScenarioScore] = {}
@@ -49,15 +48,17 @@ class ScoringEngine:
             exit_code=exit_code,
         )
 
-    def _score_scenario(self, scenario: Scenario, artifact: RunArtifact,
-                        judge: JudgeClient | None) -> ScenarioScore:
+    def _score_scenario(
+        self, scenario: Scenario, artifact: RunArtifact, judge: JudgeClient | None
+    ) -> ScenarioScore:
         metric_results: dict[str, ScoreResult] = {}
         safety_violations: list[str] = []
         overall = "passed"
 
         for name, metric_config in (scenario.metrics or {}).items():
-            config = (metric_config if isinstance(metric_config, dict)
-                      else metric_config.model_dump())
+            config = (
+                metric_config if isinstance(metric_config, dict) else metric_config.model_dump()
+            )
 
             if name in _HYBRID_METRICS:
                 gate_cls = get_scorer(f"{name}_gate")
@@ -65,9 +66,15 @@ class ScoringEngine:
                     continue
                 if judge is None:
                     result = ScoreResult(
-                        metric=name, score=None, threshold=config.get("threshold", 0.5),
-                        passed=None, category="correctness", blocking=False,
-                        detail={}, source="judge", error="judge not configured",
+                        metric=name,
+                        score=None,
+                        threshold=config.get("threshold", 0.5),
+                        passed=None,
+                        category="correctness",
+                        blocking=False,
+                        detail={},
+                        source="judge",
+                        error="judge not configured",
                     )
                 else:
                     gate = gate_cls() if isinstance(gate_cls, type) else gate_cls
@@ -84,9 +91,15 @@ class ScoringEngine:
                     result = scorer.score(artifact, scenario, config)
                 except Exception as exc:
                     result = ScoreResult(
-                        metric=name, score=None, threshold=config.get("threshold", 0.5),
-                        passed=None, category="correctness", blocking=False,
-                        detail={}, source="deterministic", error=f"scorer failed: {exc}",
+                        metric=name,
+                        score=None,
+                        threshold=config.get("threshold", 0.5),
+                        passed=None,
+                        category="correctness",
+                        blocking=False,
+                        detail={},
+                        source="deterministic",
+                        error=f"scorer failed: {exc}",
                     )
 
             metric_results[name] = result
@@ -106,8 +119,9 @@ class ScoringEngine:
             safety_violations=safety_violations,
         )
 
-    def _resolve_exit_code(self, scenario_scores: dict[str, ScenarioScore],
-                           safety_violations: list[str]) -> int:
+    def _resolve_exit_code(
+        self, scenario_scores: dict[str, ScenarioScore], safety_violations: list[str]
+    ) -> int:
         if safety_violations:
             return 4
         judge_errors = any(
