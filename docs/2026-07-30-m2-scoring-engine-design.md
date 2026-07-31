@@ -1,0 +1,251 @@
+# M2: Scoring Engine — Design
+
+**Status:** Approved
+**Date:** 2026-07-30
+**Depends on:** M1 Core Runner (complete), Spec v1.0 §"Scoring Engine", §"Judge Configuration", §"Validator Contract", §"CI Integration"
+
+## 1. Goal
+
+Score M1 `RunArtifact`s against scenario `expected`/`metrics` using deterministic
+scorers, LLM-as-judge scorers, and hybrid scoring, then aggregate results per
+scenario and per run with the safety > correctness > efficiency hierarchy and
+CI exit-code resolution.
+
+## 2. Metric Vocabulary
+
+Launch-pack metric names are the canonical surface. The spec's scoring catalog
+names (`exact_match`, `schema_valid`, `field_presence`, `tool_called`,
+`tool_not_called`, `tool_args_match`, `step_count`, `token_count`, `cost_budget`,
+`timeout`, `tool_sequence`) are registered as aliases where they map to a
+launch-pack equivalent. Catalog scorers with no launch-pack counterpart
+(`tool_sequence`, `token_count`, `timeout`, `plan_quality`,
+`conflict_explanation`, `hallucination_check`) are registered but marked
+not-in-launch-pack and deferred unless trivial.
+
+### 2.1 Metric Classification
+
+**Deterministic (8):**
+
+| Metric | Checks | Source |
+|--------|--------|--------|
+| `tool_correctness` | trajectory tool calls use allowed tools / disallowed tools refused | artifact.trajectory, scenario.allowed_tools/disallowed_tools |
+| `zero_disallowed_actions` | no disallowed tool called | artifact.trajectory, scenario.disallowed_tools |
+| `unsafe_action_avoidance` | no unsafe/approval-boundary action taken | artifact.trajectory, scenario context |
+| `schema_validity` | `output.final`/`structured` validates against `expected.schema` | artifact.output, scenario.expected |
+| `field_correctness` | required fields present in output | artifact.output, scenario.expected |
+| `argument_correctness` | tool call args match expected (exact/subset/superset) | artifact.trajectory, scenario.expected |
+| `step_efficiency` | steps within `budget.max_steps` | artifact.trajectory, scenario.budget |
+| `cost_budget_adherence` | cost within `budget.max_cost_usd` | artifact.cost, scenario.budget |
+
+**Judge (11):**
+
+| Metric | Evaluates |
+|--------|-----------|
+| `task_completion` | Did the agent accomplish the goal? |
+| `output_correctness` | Is the answer factually correct? |
+| `synthesis_quality` | Quality of multi-source synthesis |
+| `clarification_quality` | Quality of clarifying question |
+| `refusal_quality` | Quality of safe refusal |
+| `recovery_quality` | Quality of failure recovery |
+| `blast_radius_accuracy` | Accuracy of change-impact assessment |
+| `verification_quality` | Quality of verification steps |
+| `hypothesis_quality` | Quality of debugging hypotheses |
+| `evidence_grounding` | Claims grounded in available evidence |
+| `hallucination_rate` | Degree of fabrication / ungrounded claims |
+
+**Hybrid (2):** deterministic gate first; skip judge on clean pass/fail; judge
+fallback when the gate is inconclusive.
+
+| Metric | Deterministic gate | Judge fallback |
+|--------|--------------------|----------------|
+| `policy_adherence` | trajectory tool calls vs allowed/disallowed/approval-boundary rules | semantic policy-respect assessment |
+| `retry_discipline` | detect repeated identical tool calls / retry loops | semantic recovery-behavior assessment |
+
+## 3. Architecture
+
+```
+src/evalforge/scoring/
+├── base.py            # Scorer ABC
+├── result.py          # ScoreResult, ScenarioScore, RunScore, JudgeVerdict
+├── registry.py        # @register_scorer + SCORERS + entry-point discovery
+├── engine.py          # ScoringEngine
+├── deterministic/
+│   ├── tools.py       # tool_correctness, zero_disallowed_actions, unsafe_action_avoidance
+│   ├── output.py      # schema_validity, field_correctness
+│   ├── args.py        # argument_correctness
+│   ├── budget.py      # step_efficiency, cost_budget_adherence
+│   └── gates.py       # policy_adherence gate, retry_discipline gate
+├── judge/
+│   ├── client.py      # JudgeClient ABC
+│   ├── openai.py      # OpenAI-compatible client
+│   ├── anthropic.py   # Anthropic client
+│   ├── ollama.py      # Ollama client
+│   ├── mock.py        # MockJudge
+│   └── scorers.py     # 11 judge scorers
+└── hybrid.py          # HybridScorer wrapper
+```
+
+### 3.1 Scorer ABC (`scoring/base.py`)
+
+```python
+class Scorer(ABC):
+    name: str            # metric name this scorer implements
+    kind: str            # "deterministic" | "judge"
+    def score(self, artifact: RunArtifact, scenario: Scenario,
+              metric_config: dict) -> ScoreResult: ...
+```
+
+### 3.2 Result types (`scoring/result.py`)
+
+- `ScoreResult` — metric, score (0–1), threshold, `passed: bool`, `blocking: bool`,
+  `error: str | None`, `detail: dict`, `source: "deterministic"|"judge"`.
+- `ScenarioScore` — scenario_id, `results: dict[str, ScoreResult]`, overall status
+  (`passed`/`warn`/`failed`), `safety_violations: list[str]`.
+- `RunScore` — per-scenario `ScenarioScore`s, aggregates (passed/warned/failed
+  counts), resolved `exit_code: int`.
+- `JudgeVerdict` — `score: float` (clamped 0–1), `rationale: str`.
+
+### 3.3 Registry (`scoring/registry.py`)
+
+- `@register_scorer(cls)` decorator → inserts into `SCORERS[name]`.
+- Duplicate-name registration raises `ConfigError`.
+- `discover_entry_points()` loads externally registered scorers (spec
+  §"Custom Scorer Registration"); no-op when no plugins installed.
+- `ALIASES` maps spec catalog names to launch-pack names where they exist.
+
+### 3.4 Deterministic scorers (`scoring/deterministic/`)
+
+Implement the 8 deterministic metrics from §2.1. They read only from
+`artifact.trajectory`, `artifact.output`, `artifact.cost`, `scenario.budget`,
+`scenario.allowed_tools`, `scenario.disallowed_tools`, `scenario.expected`.
+
+### 3.5 Judge client abstraction (`scoring/judge/`)
+
+```python
+class JudgeClient(ABC):
+    name: str
+    def judge(self, prompt: str, *, max_tokens: int = 512,
+              temperature: float = 0.0) -> JudgeVerdict: ...
+```
+
+- `OpenAIClient` — OpenAI-compatible chat completions (also serves local
+  OpenAI-protocol servers).
+- `AnthropicClient` — Messages API.
+- `OllamaClient` — local `/api/chat`.
+- `MockJudge` — returns a configurable verdict; used by tests and offline runs.
+- Verdicts require `{"score": float, "rationale": str}`; score clamped to [0,1];
+  malformed verdicts raise `JudgeError`.
+
+### 3.6 Judge scorers (`scoring/judge/scorers.py`)
+
+Each judge scorer builds a prompt from `scenario.goal`/`input`/`expected` and
+`artifact.output`/`artifact.trajectory`, calls the configured `JudgeClient`, and
+maps the verdict into a `ScoreResult`. Uses `temperature=0.0` for determinism.
+
+### 3.7 Hybrid scoring (`scoring/hybrid.py`)
+
+`HybridScorer` wraps a deterministic gate scorer and a judge scorer:
+
+1. Run the deterministic gate against `metric_config.threshold`.
+2. Clean pass → return deterministic result (judge skipped).
+3. Clean fail → return deterministic result (judge skipped).
+4. Inconclusive (gate cannot determine) → run judge scorer, return its result.
+
+### 3.8 ScoringEngine (`scoring/engine.py`)
+
+```python
+class ScoringEngine:
+    def score_run(self, pack: ScenarioPack, artifacts: list[RunArtifact],
+                  judge: JudgeClient | None = None) -> RunScore: ...
+```
+
+- Validates all metric names in the pack resolve in `SCORERS` first
+  (unknown metric → `ConfigError`).
+- Per scenario: for each `metrics` entry, resolve scorer (honoring `kind` override
+  in the metric config), run it, build `ScoreResult`.
+- Per metric config: `threshold` drives `passed`; `blocking: true` promotes a
+  correctness/efficiency metric to fail the run.
+- Per scenario: aggregate into `ScenarioScore` with the hierarchy
+  (safety > correctness > efficiency).
+- Per run: aggregate into `RunScore` + resolve exit code.
+- Optionally writes `.evalforge/runs/<run_id>/scores.json`.
+
+## 4. Evaluation Hierarchy
+
+Safety > correctness > efficiency.
+
+- **Safety class** (hard fail, exit 4): `zero_disallowed_actions`,
+  `unsafe_action_avoidance`, `policy_adherence`. A failed safety metric marks the
+  scenario failed and blocks the run regardless of other metrics.
+- **Correctness class** (fail, exit 1): `tool_correctness`, `schema_validity`,
+  `field_correctness`, `argument_correctness`, `task_completion`,
+  `output_correctness`, `synthesis_quality`, `clarification_quality`,
+  `refusal_quality`, `recovery_quality`, `blast_radius_accuracy`,
+  `verification_quality`, `hypothesis_quality`, `evidence_grounding`.
+- **Efficiency class** (warn, informational): `step_efficiency`,
+  `cost_budget_adherence`, `retry_discipline`. Fails do not fail the run unless
+  promoted with `blocking: true`.
+
+## 5. Exit Codes
+
+Per spec §"CI Integration":
+
+| Code | Meaning |
+|------|---------|
+| 0 | All scenarios passed |
+| 1 | One or more scenarios failed (regression or threshold breach) |
+| 2 | Configuration error (unknown metric, invalid scoring config) |
+| 3 | Infrastructure error (judge unavailable/failure) |
+| 4 | Safety boundary violation detected |
+
+Resolution order: safety failure (4) > config error (2) > judge infra (3) >
+scenario failure (1) > pass (0).
+
+## 6. Error Handling
+
+- Unknown metric name → `ConfigError` at engine start (exit 2), before any scoring.
+- A scorer that raises unexpectedly → catch, emit `ScoreResult(error=...)`,
+  scenario marked failed (exit 1); the run continues (a scenario failure never
+  aborts the run — same principle as M1).
+- Judge call failure/timeout/malformed verdict → `JudgeError` → that metric
+  records `error`; if any scenario requires judge, run resolves to exit 3
+  (unless safety failure → 4). Judge per-call timeout configurable.
+- Judge verdict parsing: require `{"score": float, "rationale": str}`; clamp
+  score to [0,1]; malformed → judge error.
+
+## 7. Testing Strategy (TDD)
+
+- Unit tests per deterministic scorer (mock artifacts/scenarios) — WBS #49.
+- MockJudge-driven tests per judge scorer: canned verdicts; assert prompt
+  construction + verdict parsing — WBS #50.
+- Hybrid tests: gate passes → judge skipped; gate fails → judge skipped; gate
+  inconclusive → judge decides — WBS #51.
+- Engine tests: hierarchy ordering, blocking promotion, exit-code resolution
+  (0/1/2/3/4), unknown-metric config error.
+- Client tests: OpenAI/Anthropic/Ollama with mocked HTTP; verdict parsing,
+  score clamping, error paths.
+- Registry tests: decorator registration, duplicate-name rejection, entry-point
+  discovery, alias mapping.
+- Coverage gate stays > 90%.
+
+## 8. Scope Boundaries
+
+- No CLI changes (M7). No report generation (M3). No baseline storage (M3).
+  No caching or parallel execution (M8).
+- Scoring results are returned as objects; optionally written to
+  `.evalforge/runs/<run_id>/scores.json` for M3.
+- Spec catalog scorers with no launch-pack counterpart are deferred unless
+  trivial.
+
+## 9. WBS Issue Mapping
+
+| Issue | Component |
+|-------|-----------|
+| #34 | `scoring/base.py` + `scoring/result.py` |
+| #35–#41 | deterministic scorers (§3.4) |
+| #42 | judge clients (§3.5) |
+| #43–#45 | judge scorers (§3.6) |
+| #46 | `scoring/hybrid.py` (§3.7) |
+| #47 | `scoring/engine.py` (§3.8) |
+| #48 | `scoring/registry.py` (§3.3) |
+| #49–#51 | tests (§7) |
