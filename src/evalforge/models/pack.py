@@ -41,7 +41,7 @@ class Expected(BaseModel):
     - ``rubric``: ``criteria`` is a list of qualitative pass/fail statements.
     """
 
-    type: Literal["exact", "schema", "tool_trace", "rubric"]
+    type: Literal["exact", "schema", "tool_trace", "rubric", "tool_args"]
     value: str | None = None
     # Shadowing BaseModel.schema() is intentional: the pack format uses the
     # key `schema`, and pydantic v2 tolerates it; silence mypy's complaint.
@@ -49,6 +49,8 @@ class Expected(BaseModel):
     required_fields: list[str] | None = None
     trace: list[dict[str, Any]] | None = None
     criteria: list[str] | None = None
+    tool: str | None = None
+    args: dict[str, Any] | None = None
 
 
 class Metric(BaseModel):
