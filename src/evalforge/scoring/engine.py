@@ -85,7 +85,7 @@ class ScoringEngine:
                 if scorer_cls is None:
                     continue
                 scorer = scorer_cls()
-                if hasattr(scorer, "judge"):
+                if judge is not None:
                     setattr(scorer, "judge", judge)
                 try:
                     result = scorer.score(artifact, scenario, config)
