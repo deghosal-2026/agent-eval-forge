@@ -29,3 +29,5 @@ htmlcov/
 .mypy_cache/
 .ruff_cache/
 .bandit
+.coverage
+.evalforge/

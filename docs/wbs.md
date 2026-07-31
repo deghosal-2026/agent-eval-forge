@@ -29,20 +29,20 @@
 
 ### Checklist
 
-- [ ] Initialize Python package structure (`agent-eval-forge/` with `src/evalforge/`) → [#13](https://github.com/deghosal-2026/agent-eval-forge/issues/13)
-- [ ] Configure `pyproject.toml` with dependencies and entry points → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96)
-- [ ] Set up `uv` or `pip` for dependency management → [#15](https://github.com/deghosal-2026/agent-eval-forge/issues/15)
-- [ ] Create `.gitignore`, `.env.example`
-- [ ] Initialize git repo and push blank scaffold
-- [ ] Configure ruff for linting → [#16](https://github.com/deghosal-2026/agent-eval-forge/issues/16)
-- [ ] Configure mypy with strict mode → [#17](https://github.com/deghosal-2026/agent-eval-forge/issues/17)
-- [ ] Configure pytest with basic conftest → [#18](https://github.com/deghosal-2026/agent-eval-forge/issues/18)
-- [ ] Set up GitHub Actions CI pipeline (lint, typecheck, test) → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96)
-- [ ] Configure Dependabot for dependency updates → [#20](https://github.com/deghosal-2026/agent-eval-forge/issues/20)
-- [ ] Write `README.md` from PRD/spec → [#21](https://github.com/deghosal-2026/agent-eval-forge/issues/21)
-- [ ] Write `LICENSE` (MIT) → [#22](https://github.com/deghosal-2026/agent-eval-forge/issues/22)
-- [ ] Write `CONTRIBUTING.md` → [#23](https://github.com/deghosal-2026/agent-eval-forge/issues/23)
-- [ ] Write `CHANGELOG.md` → [#24](https://github.com/deghosal-2026/agent-eval-forge/issues/24)
+- [x] Initialize Python package structure (`agent-eval-forge/` with `src/evalforge/`) → [#13](https://github.com/deghosal-2026/agent-eval-forge/issues/13)
+- [x] Configure `pyproject.toml` with dependencies and entry points → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96) (basic config; full CI integration is M8)
+- [x] Set up `uv` or `pip` for dependency management → [#15](https://github.com/deghosal-2026/agent-eval-forge/issues/15)
+- [x] Create `.gitignore`, `.env.example`
+- [x] Initialize git repo and push blank scaffold
+- [x] Configure ruff for linting → [#16](https://github.com/deghosal-2026/agent-eval-forge/issues/16)
+- [x] Configure mypy with strict mode → [#17](https://github.com/deghosal-2026/agent-eval-forge/issues/17)
+- [x] Configure pytest with basic conftest → [#18](https://github.com/deghosal-2026/agent-eval-forge/issues/18)
+- [x] Set up GitHub Actions CI pipeline (lint, typecheck, test) → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96) (basic pipeline; full CI integration is M8)
+- [x] Configure Dependabot for dependency updates → [#20](https://github.com/deghosal-2026/agent-eval-forge/issues/20)
+- [x] Write `README.md` from PRD/spec → [#21](https://github.com/deghosal-2026/agent-eval-forge/issues/21)
+- [x] Write `LICENSE` (MIT) → [#22](https://github.com/deghosal-2026/agent-eval-forge/issues/22)
+- [x] Write `CONTRIBUTING.md` → [#23](https://github.com/deghosal-2026/agent-eval-forge/issues/23)
+- [x] Write `CHANGELOG.md` → [#24](https://github.com/deghosal-2026/agent-eval-forge/issues/24)
 
 ### Success Criteria
 
@@ -54,12 +54,12 @@
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] Code review completed
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 

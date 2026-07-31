@@ -95,7 +95,7 @@ EvalForge is a **release-discipline product** first. The primary job is deciding
 - [x] PRD approved
 - [x] Spec approved
 - [x] WBS created (118 tasks across 12 milestones)
-- [ ] M0: Scaffold
+- [x] M0: Scaffold
 - [ ] M1-M11: Build through launch
 - [ ] v0.1 release
 
