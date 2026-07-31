@@ -10,6 +10,19 @@ Each model must evolve under the schema evolution rules in spec §"Schema
 Evolution Rules"; do not break deserialization of existing artifacts.
 """
 
+from evalforge.models.artifact import (
+    Cost,
+    RunArtifact,
+    RunOutput,
+    RunTimestamps,
+    TrajectoryStep,
+)
+from evalforge.models.errors import (
+    AdapterError,
+    AgentTimeoutError,
+    EvalForgeError,
+    PackParseError,
+)
 from evalforge.models.pack import (
     Budget,
     Expected,
@@ -21,11 +34,20 @@ from evalforge.models.pack import (
 )
 
 __all__ = [
+    "AdapterError",
+    "AgentTimeoutError",
     "Budget",
+    "Cost",
+    "EvalForgeError",
     "Expected",
     "Metric",
     "PackMetadata",
+    "PackParseError",
+    "RunArtifact",
+    "RunOutput",
+    "RunTimestamps",
     "Scenario",
     "ScenarioPack",
     "Tool",
+    "TrajectoryStep",
 ]
