@@ -27,8 +27,33 @@ comparison, baselines) builds on.
 Single-command flow, library-first:
 
 ```
-pack YAML/JSON → ScenarioPack → Runner → adapter.run(scenario) → RunArtifact → save to .evalforge/runs/
+pack YAML/JSON → ScenarioPack → Runner → adapter.run(scenario, config) → RunArtifact → save to .evalforge/runs/
 ```
+
+### Agent Invocation Payload (No Ground-Truth Leakage)
+
+EvalForge MUST NOT pass evaluation-only fields to the agent runtime. In
+particular: `expected`, `metrics`, and scoring thresholds are **never** sent
+to agents.
+
+Adapters receive the full `Scenario` object (because EvalForge needs it for
+validation and later scoring), but what gets transmitted to the agent is a
+restricted payload:
+
+```json
+{
+  "run_id": "run-20260730-001",
+  "scenario_id": "launch-01-account-policy",
+  "input": "What is the return policy for premium customers?",
+  "context": {"customer_tier": "premium"},
+  "allowed_tools": [{"name": "policy_lookup", "description": "Look up company policies by keyword"}],
+  "disallowed_tools": [{"name": "customer_delete"}],
+  "budget": {"max_steps": 3, "max_tokens": 500, "max_cost_usd": 0.05}
+}
+```
+
+The agent can still decide how to solve the problem and which allowed tools to
+call, but cannot directly read the rubric or expected answer.
 
 ## Components
 
@@ -50,6 +75,8 @@ pack YAML/JSON → ScenarioPack → Runner → adapter.run(scenario) → RunArti
 - **`pack_loader.py`** — YAML primary, JSON secondary. Validates: duplicate
   scenario IDs, missing required fields, valid metric names, threshold
   ranges (0.0–1.0). Raises `PackParseError` with line number on malformed YAML.
+  Implementation note: PyYAML needs a custom loader to retain `Mark` info; if
+  line/col fidelity becomes painful, switch to `ruamel.yaml`.
 
 ### Adapters (`src/evalforge/adapters/`)
 
@@ -59,12 +86,35 @@ pack YAML/JSON → ScenarioPack → Runner → adapter.run(scenario) → RunArti
   timeout_seconds).
 - **`subprocess.py`** — stdin JSON in, JSON-envelope parse with raw-text
   fallback; handles timeout (status=`timeout`), crash (status=`error` +
-  stderr), non-zero exit.
+  stderr), non-zero exit. Logs belong on stderr.
 - **`python_import.py`** — import module, call function
-  `run(input, tools, context)`, capture return value and exceptions.
+  `run(payload)`, capture return value and exceptions.
+  Timeout enforcement is implemented by running the callable in a separate
+  process (hard timeouts + isolation).
 - **`http.py`** — POST scenario JSON, handle connection errors, timeouts,
   non-200 responses.
 - **`factory.py`** — resolve adapter from agent config by `type:`.
+
+#### Subprocess JSON Envelope (v1)
+
+If an agent opts in to rich output, it should write JSON *only* to stdout:
+
+```json
+{
+  "schema_version": "evalforge.run_envelope.v1",
+  "status": "completed",
+  "output": {"final": "...", "structured": null},
+  "trajectory": {"steps": []},
+  "cost": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost_usd": 0.0},
+  "error": null
+}
+```
+
+Parsing rules:
+- EvalForge first attempts to parse the entire stdout as JSON.
+- If parsing fails, EvalForge treats stdout as raw text output (`output.final`)
+  with an empty trajectory and null cost.
+- Extra JSON fields are ignored for forward compatibility.
 
 ### Runner (`src/evalforge/runner.py`)
 
@@ -91,13 +141,18 @@ Each scenario: id, title, goal, input, context, allowed/disallowed tools,
 expected behavior (exact | schema | tool_trace | rubric), metrics, tags,
 difficulty, budget.
 
+M1 only guarantees **structural validity** and load/validate of these scenario
+definitions. Semantic scoring of `expected`/rubrics happens in M2.
+
 ## Data Flow
 
 1. `Runner.load_pack` parses and validates YAML/JSON into `ScenarioPack`.
-2. Adapter `run(scenario, config)` invokes the agent with the scenario.
+2. Adapter `run(scenario, config)` invokes the agent with the invocation payload.
 3. Adapter normalizes the result into `RunArtifact` (output, trajectory,
    cost, status, error, timing).
-4. Runner writes artifacts to `.evalforge/runs/run-<ts>-<id>.json`.
+4. Runner writes artifacts to `.evalforge/runs/<run_id>/`:
+   - `run.json` (pack-level index)
+   - `artifacts/<scenario_id>.json` (per-scenario RunArtifact)
 5. A scenario failure never aborts the pack — each scenario is independent.
 
 ## Error Handling

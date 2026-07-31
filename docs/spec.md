@@ -31,9 +31,30 @@ All three accept the same configuration: scenario pack, agent reference, baselin
 
 EvalForge invokes agents through adapters. Three invocation modes, subprocess is default.
 
+### Agent Invocation Payload (No Ground-Truth Leakage)
+
+EvalForge intentionally separates:
+- **Scenario definition** (includes evaluation fields like `expected`, `metrics`)
+- **Invocation payload** sent to the agent runtime
+
+Agents MUST NOT receive evaluation-only fields (`expected`, `metrics`, scoring
+thresholds). Adapters always transmit a restricted payload:
+
+```json
+{
+  "run_id": "run-20260730-001",
+  "scenario_id": "launch-01-account-policy",
+  "input": "…",
+  "context": {"...": "..."},
+  "allowed_tools": [{"name": "tool_name", "description": "..."}],
+  "disallowed_tools": [{"name": "tool_name"}],
+  "budget": {"max_steps": 3, "max_tokens": 500, "max_cost_usd": 0.05}
+}
+```
+
 ### 1. Subprocess (default)
 
-Agent is an executable. EvalForge passes the scenario as stdin JSON and captures stdout.
+Agent is an executable. EvalForge passes the invocation payload as stdin JSON and captures stdout.
 
 ```yaml
 agent:
@@ -42,12 +63,25 @@ agent:
   timeout_seconds: 120
 ```
 
-Contract: agent receives the full scenario JSON on stdin. EvalForge parses
-stdout as a JSON envelope (`{output, trajectory, cost, status}`); if stdout
-is not valid JSON, it falls back to treating the raw text as the final
-output with an empty trajectory. This lets any existing CLI agent produce a
-valid `RunArtifact` without changes while enabling rich trajectory capture
-for agents that opt in to the envelope format.
+Contract: agent receives the invocation payload JSON on stdin. EvalForge parses
+stdout as a JSON envelope; if stdout is not valid JSON, it falls back to
+treating the raw text as the final output with an empty trajectory.
+
+Agents that want rich trajectories MUST write JSON only to stdout (logs to
+stderr).
+
+Envelope schema (v1):
+
+```json
+{
+  "schema_version": "evalforge.run_envelope.v1",
+  "status": "completed",
+  "output": {"final": "…", "structured": null},
+  "trajectory": {"steps": []},
+  "cost": {"input_tokens": 0, "output_tokens": 0, "total_tokens": 0, "cost_usd": 0.0},
+  "error": null
+}
+```
 
 ### 2. Python Import
 
@@ -60,7 +94,21 @@ agent:
   function: run
 ```
 
-Contract: `run(input: dict, tools: list[str], context: dict) -> dict`
+Contract: `run(payload: dict) -> dict | str`
+
+Recommended shape:
+- `payload` matches the invocation payload JSON above
+- Return value is either:
+  - the JSON envelope dict (same schema as subprocess), or
+  - a plain string (treated as `output.final` with empty trajectory)
+
+```python
+def run(payload: dict) -> dict | str:
+    ...
+```
+
+Timeout enforcement: EvalForge runs the callable in a separate process to
+guarantee a hard timeout and to isolate state.
 
 ### 3. HTTP
 
@@ -73,11 +121,15 @@ agent:
   timeout_seconds: 120
 ```
 
-Contract: POST `{"input": ..., "tools": [...], "context": {...}}`, expect JSON response.
+Contract: POST the invocation payload as JSON, expect the same JSON envelope
+as subprocess on success.
 
 ## Scenario Pack Format (YAML)
 
 Primary format is YAML. JSON supported as a secondary ingest format.
+
+Scenario packs include evaluation-only fields (`expected`, `metrics`). These
+fields are used by EvalForge only and are never passed to the agent runtime.
 
 ```yaml
 pack:
@@ -341,8 +393,14 @@ Default output paths:
 ```
 .evalforge/
   runs/
-    run-20260728-001.json
-    run-20260728-002.json
+    run-20260728-001/
+      run.json
+      artifacts/
+        single-tool-retrieval-01.json
+    run-20260728-002/
+      run.json
+      artifacts/
+        single-tool-retrieval-01.json
   baselines/
     v1.2.3.json
     v2.0.0.json
