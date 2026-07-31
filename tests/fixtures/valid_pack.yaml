@@ -1,0 +1,13 @@
+pack:
+  name: "test-pack"
+  version: "1.0.0"
+
+scenarios:
+  - id: "sc-1"
+    title: "Scenario one"
+    input: "input one"
+    metrics:
+      task_completion: {threshold: 1.0}
+  - id: "sc-2"
+    title: "Scenario two"
+    input: "input two"

@@ -1,0 +1,6 @@
+pack:
+  name: "missing"
+  version: "1.0.0"
+scenarios:
+  - id: "sc-1"
+    input: "no title here"

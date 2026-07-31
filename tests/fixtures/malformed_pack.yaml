@@ -1,0 +1,8 @@
+pack:
+  name: "malformed"
+  version: "1.0.0"
+scenarios:
+  - id: "sc-1"
+    title: "one"
+    input: "i"
+    broken: [

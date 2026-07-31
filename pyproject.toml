@@ -84,3 +84,8 @@ filterwarnings = [
     # pydantic's BaseModel.schema(); suppressed per-field with a type-ignore.
     "ignore:Field name \"schema\" in \"Expected\" shadows an attribute in parent \"BaseModel\"",
 ]
+
+[dependency-groups]
+dev = [
+    "types-pyyaml>=6.0.12.20260724",
+]
