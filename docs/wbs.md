@@ -69,49 +69,49 @@
 
 ### Checklist
 
-- [ ] Implement `ScenarioPack` model (`src/evalforge/models/pack.py`) → [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71)
-  - [ ] Scenario data model (id, title, goal, input, context, tools, expected, metrics, tags, budget)
-  - [ ] Pack metadata model (name, version, description, min_evalforge)
-- [ ] YAML parser with schema validation → [#25](https://github.com/deghosal-2026/agent-eval-forge/issues/25)
-  - [ ] JSON parser as secondary format
-  - [ ] Validation: duplicate IDs, missing required fields, valid metric names, threshold ranges
-- [ ] Implement `RunArtifact` model (`src/evalforge/models/artifact.py`) → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
-  - [ ] Run metadata (id, scenario_id, timestamps, status)
-- [ ] Output model (final text, structured JSON) → [#55](https://github.com/deghosal-2026/agent-eval-forge/issues/55)
-  - [ ] Trajectory model (steps, tool calls, tool results, timing)
-  - [ ] Cost model (tokens, USD, breakdown)
-  - [ ] Error model (type, message, stack trace)
-  - [ ] Serialization to JSON
-  - [ ] Deserialization from JSON
-- [ ] Implement Agent Adapter contract (`src/evalforge/adapters/base.py`) → [#27](https://github.com/deghosal-2026/agent-eval-forge/issues/27)
-- [ ] `Adapter` abstract base class → [#27](https://github.com/deghosal-2026/agent-eval-forge/issues/27)
-  - [ ] `run(scenario, config) -> RunArtifact` signature
-  - [ ] Timeout enforcement per scenario
-  - [ ] Error capture and normalization
-- [ ] Implement Subprocess Adapter (`src/evalforge/adapters/subprocess.py`) → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
-  - [ ] Invoke agent binary with scenario input
-  - [ ] Capture stdout/stderr
-  - [ ] Parse output into RunArtifact
-  - [ ] Handle timeouts, crashes, non-zero exits
-- [ ] Implement Python Import Adapter (`src/evalforge/adapters/python_import.py`) → [#29](https://github.com/deghosal-2026/agent-eval-forge/issues/29)
-  - [ ] Import and call Python function by module path
-  - [ ] Pass scenario input, tools, context
-  - [ ] Capture return value and exceptions
-- [ ] Implement HTTP Adapter (`src/evalforge/adapters/http.py`) → [#30](https://github.com/deghosal-2026/agent-eval-forge/issues/30)
-  - [ ] POST scenario to agent endpoint
-- [ ] Handle connection errors, timeouts, non-200 responses → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
-- [ ] Implement `Runner` class (`src/evalforge/runner.py`) → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
-  - [ ] Load scenario pack → [#59](https://github.com/deghosal-2026/agent-eval-forge/issues/59)
-  - [ ] Resolve adapter from config
-  - [ ] Run single scenario (`runner.run_one(scenario_id)`)
-- [ ] Run full pack (`runner.run_all()`) → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-  - [ ] Run filtered by tag (`runner.run_all(tags=["retrieval"])`)
-  - [ ] Save artifacts to `.evalforge/runs/`
-- [ ] Author `scenarios/core-launch.yaml` with all 20 launch scenarios (pulled forward from M4/M5) → [#59](https://github.com/deghosal-2026/agent-eval-forge/issues/59)
-  - [ ] Scenarios 1-5: retrieval, synthesis, extraction, tool args, tool avoidance → [#60](https://github.com/deghosal-2026/agent-eval-forge/issues/60), [#61](https://github.com/deghosal-2026/agent-eval-forge/issues/61), [#62](https://github.com/deghosal-2026/agent-eval-forge/issues/62), [#63](https://github.com/deghosal-2026/agent-eval-forge/issues/63), [#64](https://github.com/deghosal-2026/agent-eval-forge/issues/64)
-  - [ ] Scenarios 6-10: refusal, ambiguity, budget, recovery, coding → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68), [#69](https://github.com/deghosal-2026/agent-eval-forge/issues/69), [#70](https://github.com/deghosal-2026/agent-eval-forge/issues/70), [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71), [#72](https://github.com/deghosal-2026/agent-eval-forge/issues/72)
-- [ ] Write unit tests for all models → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write integration tests for all adapter types with mock agents → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
+- [x] Implement `ScenarioPack` model (`src/evalforge/models/pack.py`) → [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71)
+  - [x] Scenario data model (id, title, goal, input, context, tools, expected, metrics, tags, budget)
+  - [x] Pack metadata model (name, version, description, min_evalforge)
+- [x] YAML parser with schema validation → [#25](https://github.com/deghosal-2026/agent-eval-forge/issues/25)
+  - [x] JSON parser as secondary format
+  - [x] Validation: duplicate IDs, missing required fields, valid metric names, threshold ranges
+- [x] Implement `RunArtifact` model (`src/evalforge/models/artifact.py`) → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
+  - [x] Run metadata (id, scenario_id, timestamps, status)
+- [x] Output model (final text, structured JSON) → [#55](https://github.com/deghosal-2026/agent-eval-forge/issues/55)
+  - [x] Trajectory model (steps, tool calls, tool results, timing)
+  - [x] Cost model (tokens, USD, breakdown)
+  - [x] Error model (type, message, stack trace)
+  - [x] Serialization to JSON
+  - [x] Deserialization from JSON
+- [x] Implement Agent Adapter contract (`src/evalforge/adapters/base.py`) → [#27](https://github.com/deghosal-2026/agent-eval-forge/issues/27)
+- [x] `Adapter` abstract base class → [#27](https://github.com/deghosal-2026/agent-eval-forge/issues/27)
+  - [x] `run(scenario, config) -> RunArtifact` signature
+  - [x] Timeout enforcement per scenario
+  - [x] Error capture and normalization
+- [x] Implement Subprocess Adapter (`src/evalforge/adapters/subprocess.py`) → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
+  - [x] Invoke agent binary with scenario input
+  - [x] Capture stdout/stderr
+  - [x] Parse output into RunArtifact
+  - [x] Handle timeouts, crashes, non-zero exits
+- [x] Implement Python Import Adapter (`src/evalforge/adapters/python_import.py`) → [#29](https://github.com/deghosal-2026/agent-eval-forge/issues/29)
+  - [x] Import and call Python function by module path
+  - [x] Pass scenario input, tools, context
+  - [x] Capture return value and exceptions
+- [x] Implement HTTP Adapter (`src/evalforge/adapters/http.py`) → [#30](https://github.com/deghosal-2026/agent-eval-forge/issues/30)
+  - [x] POST scenario to agent endpoint
+- [x] Handle connection errors, timeouts, non-200 responses → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
+- [x] Implement `Runner` class (`src/evalforge/runner.py`) → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
+  - [x] Load scenario pack → [#59](https://github.com/deghosal-2026/agent-eval-forge/issues/59)
+  - [x] Resolve adapter from config
+  - [x] Run single scenario (`runner.run_one(scenario_id)`)
+- [x] Run full pack (`runner.run_all()`) → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
+  - [x] Run filtered by tag (`runner.run_all(tags=["retrieval"])`)
+  - [x] Save artifacts to `.evalforge/runs/`
+- [x] Author `scenarios/core-launch.yaml` with all 20 launch scenarios (pulled forward from M4/M5) → [#59](https://github.com/deghosal-2026/agent-eval-forge/issues/59)
+  - [x] Scenarios 1-5: retrieval, synthesis, extraction, tool args, tool avoidance → [#60](https://github.com/deghosal-2026/agent-eval-forge/issues/60), [#61](https://github.com/deghosal-2026/agent-eval-forge/issues/61), [#62](https://github.com/deghosal-2026/agent-eval-forge/issues/62), [#63](https://github.com/deghosal-2026/agent-eval-forge/issues/63), [#64](https://github.com/deghosal-2026/agent-eval-forge/issues/64)
+  - [x] Scenarios 6-10: refusal, ambiguity, budget, recovery, coding → [#68](https://github.com/deghosal-2026/agent-eval-forge/issues/68), [#69](https://github.com/deghosal-2026/agent-eval-forge/issues/69), [#70](https://github.com/deghosal-2026/agent-eval-forge/issues/70), [#71](https://github.com/deghosal-2026/agent-eval-forge/issues/71), [#72](https://github.com/deghosal-2026/agent-eval-forge/issues/72)
+- [x] Write unit tests for all models → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Write integration tests for all adapter types with mock agents → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
 
 ### Success Criteria
 
@@ -124,11 +124,11 @@
 
 ### Milestone Exit Gates
 - [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 
