@@ -1,6 +1,7 @@
 """Scoring engine — deterministic, judge, and hybrid scatter."""
 
 from evalforge.scoring.base import Scorer
+from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.registry import (
     ALIASES,
     SCORERS,
@@ -18,6 +19,7 @@ __all__ = [
     "ScenarioScore",
     "ScoreResult",
     "Scorer",
+    "ScoringEngine",
     "discover_entry_points",
     "get_scorer",
     "register_scorer",

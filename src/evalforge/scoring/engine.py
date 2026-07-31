@@ -1,0 +1,124 @@
+from __future__ import annotations
+
+from typing import Any
+
+from evalforge.models.artifact import RunArtifact
+from evalforge.models.pack import Scenario, ScenarioPack
+from evalforge.scoring.hybrid import HybridScorer
+from evalforge.scoring.judge.client import JudgeClient
+from evalforge.scoring.registry import get_scorer
+from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
+
+_HYBRID_METRICS = {"policy_adherence", "retry_discipline"}
+
+
+class ScoringEngine:
+    def __init__(self, pack: ScenarioPack) -> None:
+        self.pack = pack
+
+    def _validate_metrics(self) -> None:
+        for scenario in self.pack.scenarios:
+            for name in (scenario.metrics or {}):
+                if get_scorer(name) is None and name not in _HYBRID_METRICS:
+                    raise ValueError(f"unknown metric: {name}")
+
+    def score_run(self, artifacts: list[RunArtifact],
+                  judge: JudgeClient | None = None) -> RunScore:
+        self._validate_metrics()
+        artifact_map = {a.scenario_id: a for a in artifacts}
+        scenario_scores: dict[str, ScenarioScore] = {}
+        all_safety_violations: list[str] = []
+        for scenario in self.pack.scenarios:
+            artifact = artifact_map.get(scenario.id)
+            if artifact is None:
+                continue
+            ss = self._score_scenario(scenario, artifact, judge)
+            scenario_scores[scenario.id] = ss
+            all_safety_violations.extend(ss.safety_violations)
+
+        passed = sum(1 for s in scenario_scores.values() if s.status == "passed")
+        warned = sum(1 for s in scenario_scores.values() if s.status == "warn")
+        failed = sum(1 for s in scenario_scores.values() if s.status == "failed")
+
+        exit_code = self._resolve_exit_code(scenario_scores, all_safety_violations)
+
+        return RunScore(
+            scenario_scores=scenario_scores,
+            totals={"passed": passed, "warned": warned, "failed": failed},
+            safety_violations=all_safety_violations,
+            exit_code=exit_code,
+        )
+
+    def _score_scenario(self, scenario: Scenario, artifact: RunArtifact,
+                        judge: JudgeClient | None) -> ScenarioScore:
+        metric_results: dict[str, ScoreResult] = {}
+        safety_violations: list[str] = []
+        overall = "passed"
+
+        for name, metric_config in (scenario.metrics or {}).items():
+            config = (metric_config if isinstance(metric_config, dict)
+                      else metric_config.model_dump())
+
+            if name in _HYBRID_METRICS:
+                gate_cls = get_scorer(f"{name}_gate")
+                if gate_cls is None:
+                    continue
+                if judge is None:
+                    result = ScoreResult(
+                        metric=name, score=None, threshold=config.get("threshold", 0.5),
+                        passed=None, category="correctness", blocking=False,
+                        detail={}, source="judge", error="judge not configured",
+                    )
+                else:
+                    gate = gate_cls() if isinstance(gate_cls, type) else gate_cls
+                    hybrid = HybridScorer(name, gate, judge)
+                    result = hybrid.score(artifact, scenario, config)
+            else:
+                scorer_cls = get_scorer(name)
+                if scorer_cls is None:
+                    continue
+                scorer = scorer_cls()
+                if hasattr(scorer, "judge"):
+                    setattr(scorer, "judge", judge)
+                try:
+                    result = scorer.score(artifact, scenario, config)
+                except Exception as exc:
+                    result = ScoreResult(
+                        metric=name, score=None, threshold=config.get("threshold", 0.5),
+                        passed=None, category="correctness", blocking=False,
+                        detail={}, source="deterministic", error=f"scorer failed: {exc}",
+                    )
+
+            metric_results[name] = result
+            if result.category == "safety" and result.passed is False:
+                safety_violations.append(name)
+            if result.passed is False and result.blocking:
+                overall = "failed"
+            elif result.passed is False and overall != "failed":
+                overall = "warn"
+            elif result.passed is True and overall == "passed":
+                overall = "passed"
+
+        return ScenarioScore(
+            scenario_id=scenario.id,
+            metric_results=metric_results,
+            status=overall if not safety_violations else "failed",
+            safety_violations=safety_violations,
+        )
+
+    def _resolve_exit_code(self, scenario_scores: dict[str, ScenarioScore],
+                           safety_violations: list[str]) -> int:
+        if safety_violations:
+            return 4
+        judge_errors = any(
+            r.error is not None and "judge" in r.error.lower()
+            for ss in scenario_scores.values()
+            for r in ss.metric_results.values()
+            if r.error
+        )
+        if judge_errors:
+            return 3
+        any_failed = any(ss.status != "passed" for ss in scenario_scores.values())
+        if any_failed:
+            return 1
+        return 0
