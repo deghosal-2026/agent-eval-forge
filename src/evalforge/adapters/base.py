@@ -62,26 +62,24 @@ def parse_agent_stdout(stdout: str, *, strict: bool = False) -> dict[str, Any]:
     except json.JSONDecodeError:
         if strict:
             raise AdapterError("agent stdout is not valid JSON (strict_output=true)") from None
-        return {
-            "schema_version": RUN_ENVELOPE_SCHEMA_VERSION,
-            "status": "completed",
-            "output": {"final": stdout, "structured": None},
-            "trajectory": {"steps": []},
-            "cost": None,
-            "error": None,
-        }
+        return _raw_text_envelope(stdout)
     if not isinstance(data, dict):
         if strict:
             raise AdapterError("agent stdout is not a JSON object (strict_output=true)") from None
-        return {
-            "schema_version": RUN_ENVELOPE_SCHEMA_VERSION,
-            "status": "completed",
-            "output": {"final": stdout, "structured": None},
-            "trajectory": {"steps": []},
-            "cost": None,
-            "error": None,
-        }
+        return _raw_text_envelope(stdout)
     return data
+
+
+def _raw_text_envelope(stdout: str) -> dict[str, Any]:
+    """Build a run envelope from plain text, stripping terminal whitespace."""
+    return {
+        "schema_version": RUN_ENVELOPE_SCHEMA_VERSION,
+        "status": "completed",
+        "output": {"final": stdout.rstrip(), "structured": None},
+        "trajectory": {"steps": []},
+        "cost": None,
+        "error": None,
+    }
 
 
 class Adapter(ABC):
@@ -101,8 +99,15 @@ class Adapter(ABC):
         payload = build_invocation_payload(scenario, run_id)
         start_iso = _now_iso()
         start_ms = _now_ms()
+        strict = bool(config.get("strict_output", False))
         try:
             raw = self._invoke(payload, config)
+            if isinstance(raw, str):
+                envelope = parse_agent_stdout(raw, strict=strict)
+            elif isinstance(raw, dict):
+                envelope = raw
+            else:
+                raise AdapterError(f"adapter returned unexpected type: {type(raw).__name__}")
         except AgentTimeoutError as exc:
             return _artifact_for_error(
                 scenario, run_id, "timeout", str(exc), config, start_iso, start_ms
@@ -115,14 +120,6 @@ class Adapter(ABC):
             return _artifact_for_error(
                 scenario, run_id, "error", str(exc), config, start_iso, start_ms
             )
-
-        strict = bool(config.get("strict_output", False))
-        if isinstance(raw, str):
-            envelope = parse_agent_stdout(raw, strict=strict)
-        elif isinstance(raw, dict):
-            envelope = raw
-        else:
-            raise AdapterError(f"adapter returned unexpected type: {type(raw).__name__}")
 
         return _artifact_from_envelope(envelope, scenario, run_id, config, start_iso, start_ms)
 
