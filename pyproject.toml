@@ -79,3 +79,8 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+filterwarnings = [
+    # Expected: `Expected.schema` is a spec-mandated field name that shadows
+    # pydantic's BaseModel.schema(); suppressed per-field with a type-ignore.
+    "ignore:Field name \"schema\" in \"Expected\" shadows an attribute in parent \"BaseModel\"",
+]
