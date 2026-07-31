@@ -11,3 +11,13 @@ LangGraph and PydanticAI adapters follow in M6. The adapter contract is
 deliberately kept interface-stable so custom third-party adapters written
 against it keep working across releases.
 """
+
+from evalforge.adapters.base import Adapter, build_invocation_payload, parse_agent_stdout
+from evalforge.adapters.factory import create_adapter
+
+__all__ = [
+    "Adapter",
+    "build_invocation_payload",
+    "create_adapter",
+    "parse_agent_stdout",
+]
