@@ -39,3 +39,11 @@ class AdapterError(EvalForgeError):
 
 class AgentTimeoutError(AdapterError):
     """The agent exceeded its timeout budget."""
+
+
+class ConfigError(EvalForgeError):
+    """Invalid configuration (unknown metric, bad scoring config)."""
+
+
+class JudgeError(EvalForgeError):
+    """A judge call failed (unavailable, timeout, malformed verdict)."""
