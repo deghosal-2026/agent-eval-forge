@@ -11,7 +11,7 @@
 | M0: Scaffold | Repo, config, CI, package structure | Week 2 (Jul 28 - Aug 3) |
 | M1: Core Runner | Scenario loading, agent invocation, artifact capture | Week 3 (Aug 4-10) |
 | M2: Scoring Engine | Deterministic scorers, LLM-as-judge, hybrid scoring | **Complete** (Aug 4-10) |
-| M3: Comparison & Baselines | Baseline save/load, comparison engine, reporting | Week 3 (Aug 4-10) |
+| M3: Comparison & Baselines | Baseline save/load, comparison engine, reporting | **Complete** (Aug 4-10) |
 | M4: Launch Scenarios 1-5 | Retrieval, synthesis, extraction, tool args, tool avoidance | Week 3 (Aug 4-10) |
 | M5: Launch Scenarios 6-10 | Refusal, ambiguity, budget, recovery, coding | Week 3 (Aug 4-10) |
 | M6: Framework Adapters | LangGraph adapter, PydanticAI adapter, adapter contract | Week 4 (Aug 11-17) |
@@ -206,36 +206,35 @@
 
 ### Checklist
 
-- [ ] Implement `Baseline` model (`src/evalforge/baselines/model.py`) → [#89](https://github.com/deghosal-2026/agent-eval-forge/issues/89)
-  - [ ] Baseline metadata (name, pack, pack_version, agent info, git_sha, created)
-  - [ ] List of run artifacts aggregated into baseline
-  - [ ] Serialization to JSON
-- [ ] Implement `BaselineStore` (`src/evalforge/baselines/store.py`) → [#89](https://github.com/deghosal-2026/agent-eval-forge/issues/89)
-  - [ ] Save baseline from run artifacts (`save(name, runs)`)
-  - [ ] Load baseline by name (`load(name)`)
-  - [ ] List all baselines (`list()`)
-  - [ ] Validate baseline against current pack version
-  - [ ] Support git-tag referenced baselines
-- [ ] Implement `ComparisonEngine` (`src/evalforge/comparison/engine.py`) → [#54](https://github.com/deghosal-2026/agent-eval-forge/issues/54)
-  - [ ] Compare individual runs against baseline
-  - [ ] Aggregate comparison at three levels: → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
-    - [ ] Per scenario — was this specific scenario better or worse?
-    - [ ] Per family/tag — did a class of scenarios regress?
-    - [ ] Aggregate pack level — overall score delta
-  - [ ] Detect new failures, new passes, regressions, improvements
-  - [ ] Calculate score deltas per metric
-- [ ] Implement `ComparisonReport` model (`src/evalforge/comparison/report.py`) → [#58](https://github.com/deghosal-2026/agent-eval-forge/issues/58)
-  - [ ] Summary statistics (total, passed, failed, safety violations, regressions)
-  - [ ] Per-scenario deltas
-  - [ ] Per-family deltas
-  - [ ] Aggregate deltas
-- [ ] Cost breakdown (agent + judge) → [#45](https://github.com/deghosal-2026/agent-eval-forge/issues/45)
-  - [ ] JSON serialization
-  - [ ] Markdown report generation
-  - [ ] CI-friendly output (exit codes, summary)
-- [ ] Write unit tests for baseline save/load/validate → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write integration tests for comparison with known artifacts → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write tests for comparison report generation (JSON + markdown) → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Implement `Baseline` model (`src/evalforge/baselines/model.py`) → [#52](https://github.com/deghosal-2026/agent-eval-forge/issues/52)
+  - [x] Baseline metadata (name, pack, pack_version, agent info, git_sha, created)
+  - [x] List of run artifacts aggregated into baseline
+  - [x] Serialization to JSON
+- [x] Implement `BaselineStore` (`src/evalforge/baselines/store.py`) → [#53](https://github.com/deghosal-2026/agent-eval-forge/issues/53)
+  - [x] Save baseline from run artifacts (`save(name, runs)`)
+  - [x] Load baseline by name (`load(name)`)
+  - [x] List all baselines (`list()`)
+  - [x] Validate baseline against current pack version
+- [x] Implement `ComparisonEngine` (`src/evalforge/comparison/engine.py`) → [#54](https://github.com/deghosal-2026/agent-eval-forge/issues/54)
+  - [x] Compare individual runs against baseline
+  - [x] Aggregate comparison at three levels:
+    - [x] Per scenario — was this specific scenario better or worse?
+    - [x] Per family/tag — did a class of scenarios regress?
+    - [x] Aggregate pack level — overall score delta
+  - [x] Detect new failures, new passes, regressions, improvements
+  - [x] Calculate score deltas per metric
+- [x] Implement `ComparisonReport` model (`src/evalforge/comparison/report.py`) → [#55](https://github.com/deghosal-2026/agent-eval-forge/issues/55)
+  - [x] Summary statistics (total, passed, failed, safety violations, regressions)
+  - [x] Per-scenario deltas
+  - [x] Per-family deltas
+  - [x] Aggregate deltas
+- [x] Cost breakdown (agent + judge) → [#55](https://github.com/deghosal-2026/agent-eval-forge/issues/55)
+  - [x] JSON serialization
+  - [x] Markdown report generation
+  - [x] CI-friendly output (exit codes, summary)
+- [x] Write unit tests for baseline save/load/validate → [#56](https://github.com/deghosal-2026/agent-eval-forge/issues/56)
+- [x] Write integration tests for comparison with known artifacts → [#57](https://github.com/deghosal-2026/agent-eval-forge/issues/57)
+- [x] Write tests for comparison report generation (JSON + markdown) → [#58](https://github.com/deghosal-2026/agent-eval-forge/issues/58)
 
 ### Success Criteria
 
@@ -248,12 +247,12 @@
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] Code review completed
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 
