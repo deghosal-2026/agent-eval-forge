@@ -10,9 +10,16 @@ that writes `.evalforge/`, `evalforge.toml`, or scenario packs relative to a
 cwd. M8's fixture/cache/parallel tests will add to this file.
 """
 
+import sys
 from pathlib import Path
 
 import pytest
+
+# Make `tests/fixtures` importable as the top-level package `fixtures` so
+# python-import adapter tests can reference mock agents via config
+# (`module="fixtures.agents"`). The parent process inserts this path, and
+# multiprocessing (spawn) propagates `sys.path` to child processes.
+sys.path.insert(0, str(Path(__file__).parent))
 
 
 @pytest.fixture
