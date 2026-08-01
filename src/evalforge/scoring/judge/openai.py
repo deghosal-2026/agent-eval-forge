@@ -64,8 +64,11 @@ def _parse_verdict(content: str) -> JudgeVerdict:
     except json.JSONDecodeError as exc:
         raise JudgeError(f"malformed verdict JSON: {exc}") from exc
 
+    if not isinstance(data, dict):
+        raise JudgeError(f"expected JSON object, got {type(data).__name__}: {content[:200]}")
+
     # omlx/Qwen compatibility: unwrap nested response_format wrapper
-    if isinstance(data, dict) and "output" in data and isinstance(data["output"], dict):
+    if "output" in data and isinstance(data["output"], dict):
         inner = data["output"]
         if "score" in inner:
             data = inner

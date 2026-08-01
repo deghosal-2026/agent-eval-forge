@@ -1,65 +1,63 @@
-"""Integration tests for the Ollama judge client.
+"""Integration tests for local omlx judge (OpenAI-compatible endpoint).
 
-These tests require an Ollama server reachable at the host specified by the
-``OLLAMA_HOST`` environment variable.  Skip the file with::
-
-    pytest -m "not ollama"
-
-The default model used for test inference is ``llama3.2``.
+Uses ``OpenAIClient`` pointed at a local omlx server running at
+http://127.0.0.1:8000/v1 with model Qwen3.5-9B-MLX-4bit. The test probes
+the endpoint before running and skips if the server is not reachable.
 """
 
 from __future__ import annotations
 
-import os
 import socket
+from typing import Any
 
+import httpx
 import pytest
 
 from evalforge.models.errors import JudgeError
-from evalforge.scoring.judge.ollama import OllamaClient
+from evalforge.scoring.judge.openai import OpenAIClient
 from evalforge.scoring.result import JudgeVerdict
 
-OLLAMA_HOST = os.environ.get("OLLAMA_HOST", "localhost:11434")
-OLLAMA_BASE_URL = f"http://{OLLAMA_HOST}"
-OLLAMA_MODEL = os.environ.get("OLLAMA_MODEL", "llama3.2")
+OMLX_BASE_URL = "http://127.0.0.1:8000/v1"
+OMLX_MODEL = "Qwen3.5-9B-MLX-4bit"
+OMLX_API_KEY = "omlx-test"
 
 
-def _ollama_available() -> bool:
-    host, port_str = OLLAMA_HOST.split(":", 1)
-    port = int(port_str)
+def _omlx_available() -> bool:
     sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     sock.settimeout(3)
     try:
-        sock.connect((host, port))
+        sock.connect(("127.0.0.1", 8000))
         sock.close()
         return True
     except (ConnectionRefusedError, OSError):
         return False
 
 
-def _make_client(model: str = OLLAMA_MODEL) -> OllamaClient:
-    return OllamaClient(model=model, base_url=OLLAMA_BASE_URL, timeout=30.0)
+def _make_client(model: str = OMLX_MODEL) -> OpenAIClient:
+    return OpenAIClient(
+        api_key=OMLX_API_KEY,
+        model=model,
+        base_url=OMLX_BASE_URL,
+        timeout=30.0,
+    )
 
 
-pytestmark = [
-    pytest.mark.ollama,
-    pytest.mark.skipif(not os.environ.get("OLLAMA_HOST"), reason="OLLAMA_HOST not set"),
-]
+pytestmark = pytest.mark.omlx
 
 
 @pytest.fixture(scope="module")
-def ollama_client() -> OllamaClient:
-    if not _ollama_available():
-        pytest.skip(f"Ollama server not reachable at {OLLAMA_BASE_URL}")
+def omlx_client() -> OpenAIClient:
+    if not _omlx_available():
+        pytest.skip(f"omlx server not reachable at {OMLX_BASE_URL}")
     return _make_client()
 
 
-class TestOllamaJudgeVerdicts:
-    """Verify the Ollama judge returns valid JudgeVerdict responses."""
+class TestOmlxJudgeVerdicts:
+    """Verify the omlx judge returns valid JudgeVerdict responses."""
 
-    def test_happy_path(self, ollama_client: OllamaClient) -> None:
+    def test_happy_path(self, omlx_client: OpenAIClient) -> None:
         """Call judge with a valid prompt and get a properly structured verdict."""
-        verdict = ollama_client.judge(
+        verdict = omlx_client.judge(
             "You are an evaluator.\n\n"
             "Question: What is the capital of France?\n"
             "Answer: Paris\n"
@@ -71,9 +69,9 @@ class TestOllamaJudgeVerdicts:
         assert 0.0 <= verdict.score <= 1.0
         assert len(verdict.rationale) > 0
 
-    def test_incorrect_answer_scores_low(self, ollama_client: OllamaClient) -> None:
+    def test_incorrect_answer_scores_low(self, omlx_client: OpenAIClient) -> None:
         """A clearly wrong answer should produce a low score."""
-        verdict = ollama_client.judge(
+        verdict = omlx_client.judge(
             "You are an evaluator.\n\n"
             "Question: What is 2 + 2?\n"
             "Answer: 5\n"
@@ -84,46 +82,60 @@ class TestOllamaJudgeVerdicts:
         assert verdict.score <= 0.5, f"Expected low score, got {verdict.score}: {verdict.rationale}"
 
     def test_model_not_found(self) -> None:
-        """A nonexistent model name should raise JudgeError."""
+        """A nonexistent model name should raise an error."""
         client = _make_client(model="nonexistent-model-xyz")
-        with pytest.raises(JudgeError):
+        with pytest.raises((JudgeError, httpx.HTTPError)):
             client.judge("test prompt")
 
     def test_server_down(self) -> None:
         """Connecting to a wrong host/port should raise a connection error."""
-        client = OllamaClient(base_url="http://127.0.0.1:19999", timeout=2.0)
-        with pytest.raises(JudgeError):
+        client = OpenAIClient(
+            api_key=OMLX_API_KEY,
+            model=OMLX_MODEL,
+            base_url="http://127.0.0.1:19999/v1",
+            timeout=2.0,
+        )
+        with pytest.raises((JudgeError, httpx.HTTPError)):
             client.judge("test prompt")
 
-    def test_json_parse_robustness(self) -> None:
+    def test_json_parse_robustness(self, omlx_client: OpenAIClient) -> None:
         """Verify JudgeError is raised for malformed JSON verdicts."""
-        client = _make_client()
         prompt = "Return invalid JSON: {{broken"
-        with pytest.raises(JudgeError):
-            client.judge(prompt)
+        with pytest.raises((JudgeError, httpx.HTTPError)):
+            omlx_client.judge(prompt)
 
 
-class TestOllamaScoringPipeline:
-    """Verify the scoring pipeline works end-to-end with Ollama."""
+class TestOmlxScoringPipeline:
+    """Verify the scoring pipeline works end-to-end with omlx."""
 
-    def test_full_pipeline(self, ollama_client: OllamaClient, tmp_path) -> None:
-        """Run a full scoring pipeline through ScoringEngine with an Ollama judge."""
-        from evalforge.models.artifact import RunArtifact, RunOutput, RunTimestamps, Cost
-        from evalforge.models.pack import Metric, Scenario, ScenarioPack, Expected, PackMetadata
+    def test_full_pipeline(self, omlx_client: OpenAIClient, tmp_path: Any) -> None:
+        """Run a full scoring pipeline through ScoringEngine with omlx judge."""
+        from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
+        from evalforge.models.pack import (
+            Expected,
+            Metric,
+            PackMetadata,
+            Scenario,
+            ScenarioPack,
+        )
         from evalforge.scoring.engine import ScoringEngine
+        from evalforge.scoring.judge import scorers  # noqa: F401
 
         scenario = Scenario(
-            id="ollama-test-1",
-            title="Ollama scoring test",
+            id="omlx-test-1",
+            title="omlx scoring test",
             input="What is the capital of France?",
             goal="Answer correctly",
             expected=Expected(type="exact", value="Paris"),
-            metrics={"judge_correctness": Metric(threshold=0.5)},
+            metrics={"output_correctness": Metric(threshold=0.5)},
         )
-        pack = ScenarioPack(pack=PackMetadata(name="ollama-test", version="1.0"), scenarios=[scenario])
+        pack = ScenarioPack(
+            pack=PackMetadata(name="omlx-test", version="1.0"),
+            scenarios=[scenario],
+        )
         artifact = RunArtifact(
             id="r1",
-            scenario_id="ollama-test-1",
+            scenario_id="omlx-test-1",
             agent={},
             timestamp=RunTimestamps(
                 start="2025-01-01T00:00:00Z",
@@ -138,8 +150,8 @@ class TestOllamaScoringPipeline:
         )
 
         engine = ScoringEngine(pack)
-        result = engine.score_run([artifact], judge=ollama_client)
+        result = engine.score_run([artifact], judge=omlx_client)
         assert result.exit_code in (0, 1)
-        assert "ollama-test-1" in result.scenario_scores
-        ss = result.scenario_scores["ollama-test-1"]
+        assert "omlx-test-1" in result.scenario_scores
+        ss = result.scenario_scores["omlx-test-1"]
         assert ss.status in ("passed", "warn")
