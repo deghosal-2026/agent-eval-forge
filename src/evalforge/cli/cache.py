@@ -39,8 +39,8 @@ def cache_clear(output_dir: str, cache_type: str) -> None:
     base = Path(output_dir)
     cleared = 0
     targets = {
-        "all": ["runs", "baselines", "judge_cache"],
-        "judge": ["judge_cache"],
+        "all": ["runs", "baselines", "judge_cache", "cache"],
+        "judge": ["judge_cache", "cache"],
         "runs": ["runs"],
         "baselines": ["baselines"],
     }[cache_type]

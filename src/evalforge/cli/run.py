@@ -149,7 +149,7 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
 @click.option(
     "--no-cache",
     is_flag=True,
-    help="Disable all caching (judge cache, run cache)",
+    help="Disable judge result caching",
 )
 def run(
     pack: str,

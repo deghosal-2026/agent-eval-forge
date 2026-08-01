@@ -5,6 +5,15 @@ from pathlib import Path
 from evalforge.cache.judge_cache import JudgeCache
 from evalforge.cache.run_cache import RunCache
 from evalforge.cache.schema_cache import SchemaCache
+from evalforge.scoring.engine import ScoringEngine
+from evalforge.scoring.judge.mock import MockJudge
+
+# Import scorer modules to register them
+from evalforge.scoring.deterministic import (  # noqa: F401
+    gates,
+    tools,
+)
+from evalforge.scoring.judge import scorers  # noqa: F401
 
 
 def test_judge_cache_set_get(tmp_path: Path) -> None:
@@ -67,3 +76,61 @@ def test_schema_cache() -> None:
     assert cache.is_validated("pack_hash_1")
     cache.clear()
     assert not cache.is_validated("pack_hash_1")
+
+
+def test_judge_cache_integration_with_scoring_engine(tmp_path: Path) -> None:
+    from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
+    from evalforge.models.pack import (
+        Budget,
+        Expected,
+        Metric,
+        PackMetadata,
+        Scenario,
+        ScenarioPack,
+        Tool,
+    )
+    from evalforge.scoring.result import RunScore
+
+    pack = ScenarioPack(
+        pack=PackMetadata(name="test", version="1.0.0"),
+        scenarios=[
+            Scenario(
+                id="sc-1",
+                title="T",
+                input="i",
+                goal="g",
+                allowed_tools=[Tool(name="a")],
+                budget=Budget(max_steps=5),
+                expected=Expected(type="exact", value="ok"),
+                metrics={"policy_adherence": Metric(threshold=1.0)},
+                tags=["retrieval"],
+            ),
+        ],
+    )
+    artifact = RunArtifact(
+        id="r1",
+        scenario_id="sc-1",
+        timestamp=RunTimestamps(start="x", end="y", duration_ms=0),
+        output=RunOutput(final="ok", structured=None),
+        trajectory=[],
+        cost=Cost(),
+        status="completed",
+        error=None,
+        agent={},
+    )
+
+    judge_cache = JudgeCache(base_dir=str(tmp_path))
+    engine = ScoringEngine(pack, judge_cache=judge_cache)
+    judge = MockJudge(score=1.0, rationale="good")
+
+    # First call: should compute and cache
+    result1 = engine.score_run([artifact], judge=judge)
+    assert isinstance(result1, RunScore)
+    assert result1.exit_code == 0
+    assert judge_cache.stats()["files"] == 1
+
+    # Second call: should read from cache (same hash, same inputs)
+    engine2 = ScoringEngine(pack, judge_cache=judge_cache)
+    result2 = engine2.score_run([artifact], judge=judge)
+    assert isinstance(result2, RunScore)
+    assert result2.exit_code == 0
