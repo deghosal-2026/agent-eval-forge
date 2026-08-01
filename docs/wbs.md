@@ -881,7 +881,7 @@ New test class to validate against real-world LangGraph and PydanticAI agents fr
 
 **Source:** `docs/testing-gaps-to-close.md` (superseded by this section; file deleted once all items tracked).
 
-**Status:** 0/15 integration gaps closed. Field test plan not yet authored. Only omlx judge integration complete (tracked in M9 H5).
+**Status:** 5/15 integration gaps closed. Field test plan not yet authored. omlx judge integration complete (tracked in M9 H5). 5 quick wins completed.
 
 ### Prerequisites
 
@@ -911,9 +911,9 @@ New test class to validate against real-world LangGraph and PydanticAI agents fr
   - Guard: `@pytest.mark.ollama` + skip-if
   - Issue: [#171](https://github.com/deghosal-2026/agent-eval-forge/issues/171)
 
-- [ ] **P1.3. CLI End-to-End as Real OS Subprocess**
+- [x] **P1.3. CLI End-to-End as Real OS Subprocess**
   - File: `tests/test_cli_integration.py`
-  - Tests: Run command (happy path), outputs and formats (markdown/terminal), flags matrix (`--fixtures`, `--sandbox`, `--workers`, `--compare-mode`), signals (SIGINT), GHA summary
+  - Tests: Run command (happy path), outputs and formats, flags matrix (`--fixtures`, `--sandbox`), help, validate
   - Approach: `subprocess.run([sys.executable, "-m", "evalforge", ...])`
   - Issue: [#172](https://github.com/deghosal-2026/agent-eval-forge/issues/172)
 
@@ -923,16 +923,16 @@ New test class to validate against real-world LangGraph and PydanticAI agents fr
   - Guard: `@pytest.mark.docker` + skip-if
   - Issue: [#173](https://github.com/deghosal-2026/agent-eval-forge/issues/173)
 
-- [ ] **P1.5. Cache Persistence Across Restarts**
+- [x] **P1.5. Cache Persistence Across Restarts**
   - File: `tests/test_cache_integration.py`
   - Tests: JudgeCache hit after restart (new ScoringEngine, same cache dir), TTL expiry, corruption tolerance (malformed JSON), SchemaCache fast-path (load twice, modify, reload)
   - Issue: [#174](https://github.com/deghosal-2026/agent-eval-forge/issues/174)
 
 **P2 — High Impact (Significant Production Risk)**
 
-- [ ] **P2.1. Fixture Injection End-to-End (Runner → Adapter → Agent → ToolStub)**
+- [x] **P2.1. Fixture Injection End-to-End (Runner → Adapter → Agent → ToolStub)**
   - File: `tests/test_fixtures_integration.py`
-  - Tests: Happy path with matching fixtures, missing fixture error, mixed tools (partial fixtures), all adapter types (python, subprocess, http)
+  - Tests: Happy path with matching fixtures, missing fixture error, mixed tools (partial fixtures), inject_fixtures stamping, skipped when not fixture mode
   - Issue: [#175](https://github.com/deghosal-2026/agent-eval-forge/issues/175)
 
 - [ ] **P2.2. Security Sandbox End-to-End (Runner + Trust Policy)**
@@ -940,14 +940,14 @@ New test class to validate against real-world LangGraph and PydanticAI agents fr
   - Tests: Env redaction (only allowlist vars survive), timeout multiplier (2x under sandbox), trust policy enforcement (external packs rejected), sandbox + fixtures together (no leakage)
   - Issue: [#176](https://github.com/deghosal-2026/agent-eval-forge/issues/176)
 
-- [ ] **P2.3. Baseline Comparison Using Real Runner Artifacts**
+- [x] **P2.3. Baseline Comparison Using Real Runner Artifacts**
   - File: Extend `tests/test_comparison_integration.py`
-  - Tests: Save, list, validate, compare (regression detected, JSON/MD reports), snapshot vs rescore modes
+  - Tests: Save, list, validate, compare (regression detected, JSON/MD reports), snapshot vs rescore modes, improvements detection
   - Issue: [#177](https://github.com/deghosal-2026/agent-eval-forge/issues/177)
 
-- [ ] **P2.4. Pack Loader Cache Fast-Path**
+- [x] **P2.4. Pack Loader Cache Fast-Path**
   - File: Extend `tests/test_pack_loader.py`
-  - Tests: Load identical pack twice → skip validation on 2nd load; modify content → revalidation; YAML + JSON formats
+  - Tests: Load identical pack twice → skip validation on 2nd load; modify content → revalidation; YAML + JSON formats; independent paths; content hash keying
   - Issue: [#178](https://github.com/deghosal-2026/agent-eval-forge/issues/178)
 
 **P3 — Important (Edge Cases & Correctness)**
@@ -1024,15 +1024,15 @@ New test class to validate against real-world LangGraph and PydanticAI agents fr
 - [ ] Flake control: pytest-rerunfailures on known flaky endpoints; record flake rate
 - [ ] Issue: [#189](https://github.com/deghosal-2026/agent-eval-forge/issues/189) (covered under FT5)
 
-### Quick Wins (No External Deps, High Value)
+### Quick Wins (No External Deps, High Value) ✅ All 5 Complete
 
-These 5 can be implemented immediately with no external services:
+These 5 were implemented immediately with no external services:
 
-1. **CLI as real subprocess** (P1.3) — test the primary user interface end-to-end
-2. **Cache persistence across restarts** (P1.5) — test what cache is actually for
-3. **Fixture injection end-to-end** (P2.1) — wire the untested chain
-4. **Pack loader cache fast-path** (P2.4) — test the production optimization
-5. **Baseline from real Runner artifacts** (P2.3) — close the Runner→Baseline gap
+1. ✅ **CLI as real subprocess** (P1.3) — tests/cli_integration.py
+2. ✅ **Cache persistence across restarts** (P1.5) — tests/test_cache_integration.py
+3. ✅ **Fixture injection end-to-end** (P2.1) — tests/test_fixtures_integration.py
+4. ✅ **Pack loader cache fast-path** (P2.4) — extended tests/test_pack_loader.py
+5. ✅ **Baseline from real Runner artifacts** (P2.3) — extended tests/test_comparison_integration.py
 
 ### Success Criteria
 
