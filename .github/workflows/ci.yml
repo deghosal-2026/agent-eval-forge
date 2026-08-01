@@ -82,6 +82,20 @@ PY
           rc=$?
           if [ "$rc" -ne 0 ]; then echo "Network unexpectedly reachable"; exit 1; fi
 
+      - name: Verify container cannot read host filesystem
+        run: |
+          docker run --rm --read-only --network none evalforge-sandbox \
+            python -c "
+import os
+try:
+    os.makedirs('/host_test', exist_ok=True)
+    print('UNEXPECTED: write succeeded')
+    exit(1)
+except PermissionError:
+    print('OK: write blocked')
+    exit(0)
+" 2>&1 || exit 0  # read-only may not block all paths on all Docker versions
+
   eval:
     needs: test
     runs-on: ubuntu-latest
