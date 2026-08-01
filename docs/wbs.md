@@ -264,14 +264,14 @@
 
 ### Checklist
 
-- [x] Create mock agents for each scenario to verify scoring → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [x] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [x] Mock agent that fails each scenario in expected ways → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
-- [x] Write tests for each scenario → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Create mock agents for each scenario to verify scoring → [#65](https://github.com/deghosal-2026/agent-eval-forge/issues/65)
+- [x] Mock agent that passes each scenario → [#65](https://github.com/deghosal-2026/agent-eval-forge/issues/65)
+- [x] Mock agent that fails each scenario in expected ways → [#65](https://github.com/deghosal-2026/agent-eval-forge/issues/65)
+- [x] Write tests for each scenario → [#66](https://github.com/deghosal-2026/agent-eval-forge/issues/66)
   - [x] Test that passing agent scores correctly
   - [x] Test that failing agent is caught
-- [x] Test that each expected failure mode is detectable → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
-- [x] Write fixture data for deterministic runs → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
+- [x] Test that each expected failure mode is detectable → [#66](https://github.com/deghosal-2026/agent-eval-forge/issues/66)
+- [x] Write fixture data for deterministic runs → [#67](https://github.com/deghosal-2026/agent-eval-forge/issues/67)
   - [x] `fixtures/policy_lookup.json`
   - [x] `fixtures/health_check.json`
   - [x] `fixtures/customer_lookup.json`
