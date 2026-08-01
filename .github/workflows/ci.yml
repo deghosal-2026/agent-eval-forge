@@ -39,6 +39,49 @@ jobs:
       - name: Test
         run: uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90 --cov-omit='*/judge/anthropic.py,*judge/ollama.py,*judge/openai.py'
 
+  docker-sandbox:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build sandbox test image
+        run: |
+          docker build -t evalforge-sandbox -f Dockerfile .
+
+      - name: Run eval in container without network
+        run: |
+          # Run a quick eval with no network to validate isolation
+          docker run --rm --network none evalforge-sandbox \
+            bash -lc "uv run evalforge run \
+              --pack scenarios/core-launch.yaml \
+              --agent subprocess:'python tests/fixtures/echo_agent.py' \
+              --output .evalforge \
+              --output-format json \
+              --ci \
+              --fixtures"
+
+      - name: Verify container cannot reach internet (expected fail)
+        run: |
+          set +e
+          docker run --rm --network none evalforge-sandbox python - << 'PY'
+import socket, sys
+s = socket.socket()
+try:
+    s.settimeout(2)
+    s.connect(("8.8.8.8", 53))
+    print("UNEXPECTED: network reachable")
+    sys.exit(1)
+except Exception as e:
+    print("OK: network blocked:", e)
+    sys.exit(0)
+PY
+          rc=$?
+          if [ "$rc" -ne 0 ]; then echo "Network unexpectedly reachable"; exit 1; fi
+
   eval:
     needs: test
     runs-on: ubuntu-latest
@@ -69,6 +112,7 @@ jobs:
             --output .evalforge \
             --output-format github-actions \
             --ci \
+            --sandbox \
             --fixtures
 
       - name: Upload results

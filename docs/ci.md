@@ -89,6 +89,25 @@ A complete workflow template is available at
 - Set `checks: write` in `permissions` to enable PR annotations
 - Run `validate` before `run` to fail fast on configuration errors
 
+### Docker-Based Sandbox Test (Linux)
+
+The CI includes a `docker-sandbox` job that builds the project Docker image and executes an evaluation inside a container with `--network none`. This validates that evaluations complete without network access (environment-only isolation check):
+
+```bash
+docker build -t evalforge-sandbox -f Dockerfile .
+docker run --rm --network none evalforge-sandbox \
+  bash -lc "uv run evalforge run \
+    --pack scenarios/core-launch.yaml \
+    --agent subprocess:'python tests/fixtures/echo_agent.py' \
+    --output .evalforge \
+    --output-format json \
+    --ci \
+    --fixtures"
+```
+
+Notes:
+- This validates no-network behavior. For full OS-level sandbox (FS/network/cgroups), consider a dedicated container runtime flow (Docker/cgroups) with explicit mount/network policies. See the Security Review for recommendations.
+
 ## GitLab CI Notes
 
 Adapt the GitHub Actions template for GitLab CI:
@@ -142,5 +161,31 @@ eval:
 - **Secrets**: If your agent needs API keys, pass them as CI secrets via
   environment variables. EvalForge passes environment through to the agent
   process.
+- **Sandbox**: Prefer `--sandbox` in CI to strip environment variables from agent processes. Hardened CI can also run agents inside Docker with `--network none` (see Docker-Based Sandbox Test).
 - **Parallel runs**: For large packs, consider splitting scenarios across
   multiple CI jobs using a matrix strategy with `--filter scenario_name`.
+
+## Public Agent Evaluation Recipes (LangGraph & PydanticAI)
+
+You can evaluate public example agents for LangGraph and PydanticAI. Two approaches:
+
+1) Use the included fixtures (recommended for CI stability):
+   - `tests/fixtures/langgraph_agent.py`
+   - `tests/fixtures/pydantic_ai_agent.py`
+   These are minimal agents wired for deterministic runs. Run adapter integration tests by installing extras:
+   ```bash
+   uv sync --extra langgraph --extra pydanticai
+   uv run pytest tests/test_adapters_integration.py -q
+   ```
+
+2) Evaluate public examples from docs/repos (best-effort; may be flaky if upstreams change):
+   - LangGraph: clone a minimal graph agent from the official examples and expose a `run(payload)` entrypoint. Then:
+     ```bash
+     evalforge run --pack scenarios/core-launch.yaml --agent python:my_langgraph_example.run --ci --fixtures
+     ```
+   - PydanticAI: similar flow — ensure an importable module with `run(payload)` exists.
+
+Tips:
+- Prefer vendoring a minimal example in your repo for stability.
+- For live external calls, switch from `--fixtures` to `--live` (mutually exclusive) so agents call real tools.
+- For untrusted third-party examples, force `--sandbox` and/or Docker execution in CI.
