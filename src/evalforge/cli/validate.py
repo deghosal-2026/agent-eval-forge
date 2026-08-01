@@ -131,10 +131,10 @@ def validate(
                 importlib.import_module(cfg["module"])
             # Verifies the adapter class can be instantiated
             create_adapter(cfg)
+            agent_warnings: list[str] = []
             if cfg["type"] == "http":
                 import httpx
 
-                agent_warnings: list[str] = []
                 try:
                     r = httpx.head(cfg.get("url", ""), timeout=5)
                     if r.status_code >= 500:
@@ -143,12 +143,11 @@ def validate(
                         )
                 except Exception as e:
                     agent_warnings.append(f"HTTP connectivity check failed: {e}")
-                if agent_warnings:
-                    results["agent"]["warnings"] = agent_warnings
             results["agent"] = {
                 "valid": True,
                 "message": f"Adapter '{cfg['type']}' created successfully",
                 "type": cfg["type"],
+                "warnings": agent_warnings,
             }
         except Exception as e:
             results["agent"] = {"valid": False, "message": str(e)}

@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from unittest.mock import patch
 
 from click.testing import CliRunner
 
@@ -183,6 +184,26 @@ def test_baseline_save_list_validate(tmp_path: Path) -> None:
     )
     assert code == 0
     assert "All checks passed" in out
+
+
+def test_validate_http_warnings_propagated() -> None:
+    import httpx
+
+    def _fake_head(url, **kw):
+        raise httpx.ConnectError("Connection refused")
+
+    with patch("httpx.head", side_effect=_fake_head):
+        code, out = _invoke(
+            "validate",
+            "--agent", "http:http://localhost:9999/nonexistent",
+            "--output-format", "json",
+        )
+    assert code == 0, f"expected 0, got {code}: {out}"
+    data = json.loads(out)
+    assert "agent" in data
+    warnings = data["agent"].get("warnings", [])
+    assert len(warnings) == 1
+    assert "connectivity" in warnings[0].lower()
 
 
 def test_compare_no_run_dir(tmp_path: Path) -> None:
