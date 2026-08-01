@@ -242,3 +242,26 @@ def test_output_formatter_github_actions_test_result() -> None:
     output = formatter.format_test_result(summary)
     assert output is not None
     assert "EvalForge Test Run Results" in output
+
+
+def test_pytest_plugin_evalforge_run(tmp_path: Path) -> None:
+    """Invoke evalforge test run to exercise the pytest plugin end-to-end."""
+    echo_agent = f"{sys.executable} tests/fixtures/echo_agent.py"
+    cwd = tmp_path / "project"
+    cwd.mkdir()
+    # Create a test scenarios dir with a valid pack
+    test_scenarios = cwd / "scenarios"
+    test_scenarios.mkdir()
+    import shutil
+    shutil.copy2(PACK_YAML, test_scenarios / "test_pack.yaml")
+    cp = subprocess.run(
+        [sys.executable, "-m", "evalforge", "test", "run",
+         "--agent", f"subprocess:{echo_agent}",
+         "--judge", "mock",
+         "--scenarios-dir", str(test_scenarios),
+         "--output", str(cwd / ".evalforge"),
+         "--output-format", "json"],
+        capture_output=True, text=True, cwd=cwd,
+        env={**__import__("os").environ, "PYTHONPATH": f"{Path(__file__).parent.parent / 'src'}"},
+    )
+    assert cp.returncode == 0, f"stdout: {cp.stdout}\nstderr: {cp.stderr}"

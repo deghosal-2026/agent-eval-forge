@@ -217,3 +217,11 @@ def test_compare_no_run_dir(tmp_path: Path) -> None:
     )
     assert code == 1
     assert "not found" in out
+
+
+def test_validate_pre_flight(tmp_path: Path) -> None:
+    """evalforge validate --pre-flight checks pack, agent, fixtures."""
+    runner = CliRunner()
+    result = runner.invoke(main, ["validate", "--pack", str(PACK_YAML), "--pre-flight"])
+    assert result.exit_code == 0
+    assert "test-pack" in result.output.strip()

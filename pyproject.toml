@@ -83,6 +83,10 @@ markers = [
     "evalforge(pack=None, agent=None): run test with EvalForge scenarios",
     "evalforge_tags(tag1, tag2, ...): filter scenarios by tags",
     "omlx: integration tests requiring a running omlx server",
+    "ollama: integration tests requiring a running Ollama server",
+    "docker: integration tests requiring a running Docker daemon",
+    "slow: tests that may take longer to complete",
+    "field: field tests against real agents from GitHub",
 ]
 filterwarnings = [
     # Expected: `Expected.schema` is a spec-mandated field name that shadows

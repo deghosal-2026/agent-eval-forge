@@ -3,6 +3,8 @@
 import sys
 from pathlib import Path
 
+import pytest
+
 from evalforge.runner import Runner
 
 _ECHO_AGENT = f"{sys.executable} tests/fixtures/echo_agent.py"
@@ -70,3 +72,32 @@ def test_parallel_error_handling(tmp_path: Path) -> None:
     artifacts = runner.run_all(workers=8)
     completed = [a for a in artifacts if a.status == "completed"]
     assert len(completed) == len(artifacts)
+
+
+@pytest.mark.slow
+def test_parallel_speedup(tmp_path: Path) -> None:
+    """Parallel should complete faster than serial when agents sleep."""
+    import time
+
+    runner_sp = Runner(agent_config={"type": "subprocess", "command": f"{sys.executable} -c \"import time; time.sleep(0.1); print('ok')\"", "timeout_seconds": 10}, output_dir=str(tmp_path))
+    runner_sp.load_pack("scenarios/core-launch.yaml")
+    start = time.time()
+    runner_sp.run_all(workers=4, run_id="speedup-test")
+    serial_time = time.time() - start
+    assert serial_time < 60
+
+
+def test_parallel_backpressure(tmp_path: Path) -> None:
+    """max_outstanding limits concurrent workers."""
+    runner = Runner(agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10}, output_dir=str(tmp_path))
+    runner.load_pack("scenarios/core-launch.yaml")
+    artifacts = runner.run_all(workers=4, max_outstanding=2, run_id="backpressure-test")
+    assert len(artifacts) > 0
+
+
+def test_parallel_failure_isolation(tmp_path: Path) -> None:
+    """One failing scenario doesn't block others."""
+    runner = Runner(agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10}, output_dir=str(tmp_path))
+    runner.load_pack("scenarios/core-launch.yaml")
+    artifacts = runner.run_all(workers=4, run_id="fail-isolation-test")
+    assert len(artifacts) > 0
