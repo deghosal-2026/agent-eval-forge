@@ -38,7 +38,8 @@ jobs:
             --agent python:my_agent.py \
             --output .evalforge \
             --output-format github-actions \
-            --ci
+            --ci \
+            --sandbox
 
       - name: Upload evaluation artifacts
         uses: actions/upload-artifact@v4

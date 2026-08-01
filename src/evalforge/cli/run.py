@@ -174,6 +174,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     default=None,
     help="Override pack trust level",
 )
+@click.option(
+    "--explain-policy",
+    is_flag=True,
+    help="Explain why the current adapter/trust combo is or isn't allowed",
+)
 def run(
     pack: str,
     agent: str,
@@ -191,6 +196,7 @@ def run(
     sandbox: bool,
     trust: str | None,
     live: bool | None,
+    explain_policy: bool = False,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -230,6 +236,20 @@ def run(
 
     if trust:
         runner.pack.pack.trust = trust
+
+    # Enforce trust policy before running
+    from evalforge.security.policy import TrustPolicy, TrustLevel
+    pack_trust: TrustLevel = runner.pack.pack.trust  # type: ignore[assignment]
+    agent_type = agent_config.get("type", "subprocess")
+    sandbox_mode = bool(agent_config.get("sandbox", False))
+    policy = TrustPolicy(trust=pack_trust, adapter_type=agent_type, sandbox=sandbox_mode)
+    allowed, reason = policy.allowed()
+    if explain_policy:
+        click.echo(f"Policy evaluation for trust={pack_trust}, adapter={agent_type}, sandbox={sandbox_mode}:")
+        click.echo(f"  {'ALLOWED' if allowed else 'DENIED'}: {reason or 'no restrictions'}")
+        raise SystemExit(0 if allowed else 1)
+    if not allowed:
+        raise click.UsageError(reason or "adapter/trust combination not allowed")
 
     # Step 2: Generate run ID and begin audit trail
     run_id = generate_run_id()
