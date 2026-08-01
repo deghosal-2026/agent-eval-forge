@@ -26,8 +26,9 @@ class OutputFormatter:
             ``"github-actions"``. Defaults to ``"json"``.
     """
 
-    def __init__(self, format: str = "json") -> None:
+    def __init__(self, format: str = "json", quiet: bool = False) -> None:
         self.format = format
+        self.quiet = quiet
 
     def format_run_result(self, result: dict[str, Any]) -> str | None:
         """Format a run result payload.
@@ -40,7 +41,8 @@ class OutputFormatter:
             ``None`` for JSON (printed directly to stdout).
         """
         if self.format == "json":
-            print(json.dumps(result, indent=2))
+            if not self.quiet:
+                print(json.dumps(result, indent=2))
             return None
         elif self.format == "github-actions":
             return self._run_result_github_actions(result)

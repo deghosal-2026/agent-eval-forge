@@ -230,3 +230,27 @@ def test_score_run_aggregates_two_scenarios() -> None:
     result = engine.score_run(arts)
     assert len(result.scenario_scores) == 2
     assert result.totals["passed"] == 2
+
+
+def test_judge_error_exit_code_3() -> None:
+    """When judge errors occur, exit code is 3."""
+    from evalforge.adapters.base import _sanitize_agent
+    from evalforge.loading.pack_loader import load_pack
+    from evalforge.scoring.judge.mock import MockJudge
+
+    pack = load_pack("scenarios/core-launch.yaml")
+    engine = ScoringEngine(pack)
+
+    class ErrorJudge(MockJudge):
+        def judge(self, prompt: str, context: dict | None = None) -> dict:  # type: ignore[override]
+            return {"score": None, "rationale": "error: judge failed", "error": "judge error"}
+
+    artifact = RunArtifact(
+        id="test", scenario_id=pack.scenarios[0].id,
+        agent=_sanitize_agent({}),
+        timestamp=RunTimestamps(start="now", end="now", duration_ms=0),
+        output=RunOutput(final="test", structured=None),
+        trajectory=[], cost=Cost(), status="completed",
+    )
+    score = engine.score_run([artifact], judge=ErrorJudge(score=None))  # type: ignore[arg-type]
+    assert score.exit_code == 3

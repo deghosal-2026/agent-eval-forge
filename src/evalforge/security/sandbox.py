@@ -33,7 +33,7 @@ def sandboxed_run(
     env: dict[str, str] | None = None,
     timeout: float = 120.0,
     input: str | None = None,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """Run a subprocess with sandbox restrictions."""
     if not config.enabled:
         return subprocess.run(
@@ -78,7 +78,7 @@ def run_in_container(
     payload_str: str,
     config: DockerConfig,
     timeout: float,
-) -> subprocess.CompletedProcess:
+) -> subprocess.CompletedProcess[str]:
     """Run an agent inside a Docker container with isolation."""
     docker_args = ["docker", "run", "--rm"]
     if config.network_disabled:

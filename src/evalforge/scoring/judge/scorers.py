@@ -49,6 +49,7 @@ def _score_via_judge(
         )
     try:
         verdict = judge.judge(prompt)
+        passed = verdict.score >= threshold
     except Exception as exc:
         return ScoreResult(
             metric=metric,
@@ -61,7 +62,6 @@ def _score_via_judge(
             source="judge",
             error=f"judge call failed: {exc}",
         )
-    passed = verdict.score >= threshold
     return ScoreResult(
         metric=metric,
         score=verdict.score,

@@ -4,7 +4,7 @@ import hashlib
 import json
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, cast
 
 
 class JudgeCache:
@@ -24,11 +24,16 @@ class JudgeCache:
             return None
         try:
             data = json.loads(path.read_text())
+            if not isinstance(data, dict):
+                return None
             age = time.time() - data.get("_cached_at", 0)
             if age > self._ttl_seconds:
                 path.unlink(missing_ok=True)
                 return None
-            return data.get("result")
+            result = data.get("result")
+            if isinstance(result, dict):
+                return cast(dict[str, Any], result)
+            return None
         except (json.JSONDecodeError, KeyError):
             path.unlink(missing_ok=True)
             return None

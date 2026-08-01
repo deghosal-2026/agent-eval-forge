@@ -39,6 +39,13 @@ SCENARIO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
 
 def _validate_scenario_id(scenario_id: str) -> None:
+    """Validate scenario_id for safe use in file paths.
+
+    Allowed characters: A-Z, a-z, 0-9, underscore, hyphen.
+    This is intentionally strict to prevent path traversal.
+    If broader IDs are needed (e.g., dots, colons), update this regex
+    and ensure downstream path handling remains safe.
+    """
     if not SCENARIO_ID_PATTERN.match(scenario_id):
         raise ValueError(f"invalid scenario_id: {scenario_id!r}")
 

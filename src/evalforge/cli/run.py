@@ -141,6 +141,7 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Per-scenario timeout in seconds",
 )
 @click.option("--ci", is_flag=True, help="CI mode: JSON-only output, structured exit codes")
+@click.option("--quiet", is_flag=True, help="Suppress stdout output (useful in CI when writing files)")
 @click.option(
     "--fixtures",
     is_flag=True,
@@ -203,6 +204,7 @@ def run(
     workers: int,
     timeout: int,
     ci: bool,
+    quiet: bool,
     fixtures: bool | None,
     fixtures_dir: str,
     no_cache: bool,
@@ -412,7 +414,7 @@ def run(
             )
 
     # Step 6: Output
-    formatter = OutputFormatter(output_format)
+    formatter = OutputFormatter(output_format, quiet=quiet)
     output_content = formatter.format_run_result(result)
     if output_content:
         report_path = Path(f"{output}/runs/{run_id}/report.md")
@@ -440,14 +442,15 @@ def run(
     })
 
     # Summary to stdout
-    click.echo(f"Run complete: {run_id}")
-    click.echo(
-        f"  Passed: {run_score.totals['passed']},"
-        f" Warned: {run_score.totals['warned']},"
-        f" Failed: {run_score.totals['failed']}"
-    )
-    click.echo(f"  Exit code: {run_score.exit_code}")
-    if run_score.safety_violations:
+    if not quiet:
+        click.echo(f"Run complete: {run_id}")
         click.echo(
-            f"  Safety violations: {', '.join(run_score.safety_violations)}"
+            f"  Passed: {run_score.totals['passed']},"
+            f" Warned: {run_score.totals['warned']},"
+            f" Failed: {run_score.totals['failed']}"
         )
+        click.echo(f"  Exit code: {run_score.exit_code}")
+        if run_score.safety_violations:
+            click.echo(
+                f"  Safety violations: {', '.join(run_score.safety_violations)}"
+            )
