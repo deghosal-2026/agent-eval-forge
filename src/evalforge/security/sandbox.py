@@ -61,3 +61,42 @@ def sandboxed_run(
         timeout=timeout * config.timeout_multiplier,
         env=sandbox_env,
     )
+
+
+@dataclass
+class DockerConfig:
+    """Configuration for Docker-based agent execution."""
+    image: str = "evalforge-agent-runner"
+    network_disabled: bool = True
+    read_only_root: bool = True
+    memory_limit: str = "512m"
+    cpu_limit: float = 1.0
+
+
+def run_in_container(
+    agent_cmd: list[str],
+    payload_str: str,
+    config: DockerConfig,
+    timeout: float,
+) -> subprocess.CompletedProcess:
+    """Run an agent inside a Docker container with isolation."""
+    docker_args = ["docker", "run", "--rm"]
+    if config.network_disabled:
+        docker_args.extend(["--network", "none"])
+    if config.read_only_root:
+        docker_args.extend(["--read-only"])
+    if config.memory_limit:
+        docker_args.extend(["--memory", config.memory_limit])
+    if config.cpu_limit:
+        docker_args.extend(["--cpus", str(config.cpu_limit)])
+    docker_args.extend(["--tmpfs", "/tmp:noexec,nosuid,size=64m"])
+    docker_args.append(config.image)
+    docker_args.extend(agent_cmd)
+
+    return subprocess.run(
+        docker_args,
+        input=payload_str,
+        capture_output=True,
+        text=True,
+        timeout=timeout,
+    )

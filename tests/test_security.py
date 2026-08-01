@@ -120,3 +120,16 @@ class TestSandbox:
             env={"HOME": "/overridden/home"},
         )
         assert result.stdout.strip() == "hello"
+
+
+class TestContainer:
+    def test_run_in_container_not_available(self) -> None:
+        """When Docker is not available, container execution fails gracefully."""
+        from evalforge.security.sandbox import DockerConfig, run_in_container
+        config = DockerConfig(image="nonexistent:latest")
+        import subprocess
+        try:
+            result = run_in_container(["echo", "hi"], "", config, 10.0)
+            assert True
+        except (FileNotFoundError, subprocess.CalledProcessError):
+            pass

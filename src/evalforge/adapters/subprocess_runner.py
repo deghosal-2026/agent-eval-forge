@@ -9,7 +9,7 @@ import subprocess
 from typing import Any
 
 from evalforge.models.errors import AdapterError, AgentTimeoutError
-from evalforge.security.sandbox import SandboxConfig, sandboxed_run
+from evalforge.security.sandbox import DockerConfig, SandboxConfig, run_in_container, sandboxed_run
 
 
 def run_agent_in_subprocess(
@@ -21,6 +21,15 @@ def run_agent_in_subprocess(
     timeout = float(config.get("timeout_seconds", 120))
     sandbox = SandboxConfig(enabled=bool(config.get("sandbox", False)))
     extra_env: dict[str, str] = {}
+
+    if config.get("container_runtime") == "docker":
+        dc = DockerConfig()
+        result = run_in_container(agent_cmd, json.dumps(payload), dc, timeout)
+        if result.returncode != 0:
+            stderr = (result.stderr or "").strip()
+            raise AdapterError(f"container exited with code {result.returncode}: {stderr or '(no stderr)'}")
+        return result.stdout or ""
+
     if config.get("fixtures"):
         extra_env["EVALFORGE_FIXTURES"] = "1"
         extra_env["EVALFORGE_FIXTURES_DIR"] = config.get("fixtures_dir", "scenarios/fixtures")

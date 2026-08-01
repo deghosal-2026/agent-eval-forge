@@ -169,6 +169,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Run in sandbox mode (restricted env, no API key passthrough)",
 )
 @click.option(
+    "--container-runtime",
+    default=None,
+    help="Container runtime for agent isolation (e.g. 'docker'). Linux only.",
+)
+@click.option(
     "--trust",
     type=click.Choice(["builtin", "local", "external"]),
     default=None,
@@ -197,6 +202,7 @@ def run(
     trust: str | None,
     live: bool | None,
     explain_policy: bool = False,
+    container_runtime: str | None = None,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -226,6 +232,7 @@ def run(
         agent_config["fixtures"] = not live
     agent_config["fixtures_dir"] = fixtures_dir
     agent_config["sandbox"] = sandbox
+    agent_config["container_runtime"] = container_runtime
 
     # Parse the optional tag filter
     tag_list = tags.split(",") if tags else None
@@ -369,6 +376,13 @@ def run(
     # Persist scores as JSON for later comparison and analysis
     with open(Path(f"{output}/runs/{run_id}/scores.json"), "w") as f:
         json.dump(result, f, indent=2)
+
+    # Write to GITHUB_STEP_SUMMARY in CI mode
+    if output_format == "github-actions":
+        summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+        if summary_path:
+            with open(summary_path, "a") as f:
+                f.write(output_content or "")
 
     # Step 6a: Record audit trail completion
     audit.record("run_complete", {
