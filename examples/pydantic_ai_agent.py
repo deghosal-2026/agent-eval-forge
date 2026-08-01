@@ -10,7 +10,7 @@ To use with the adapter in a config:
 from dataclasses import dataclass
 from typing import Any
 
-from pydantic_ai import Agent, RunContext
+from pydantic_ai import Agent
 
 
 @dataclass

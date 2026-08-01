@@ -7,7 +7,6 @@ To use with the adapter in a config:
     {"type": "langgraph", "module": "examples.langgraph_agent", "model": "..."}
 """
 
-import json
 from typing import Any
 
 from langgraph.prebuilt import create_react_agent

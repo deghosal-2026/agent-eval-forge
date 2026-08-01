@@ -20,7 +20,6 @@ def _part(kind: str, **kwargs: object) -> SimpleNamespace:
 
 def build_agent(payload: dict) -> object:
     mode = payload.get("context", {}).get("mode", "tool_call")
-    user_input = payload.get("input", "")
 
     if mode == "no_tool":
         data = "I have no tools available."

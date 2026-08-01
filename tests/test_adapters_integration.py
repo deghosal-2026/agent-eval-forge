@@ -6,6 +6,7 @@ is not installed (no model API keys needed — the fixture agents are mock-only)
 """
 
 import importlib
+
 import pytest
 
 from evalforge.adapters.langgraph import LangGraphAdapter

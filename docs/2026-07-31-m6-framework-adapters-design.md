@@ -83,7 +83,7 @@ Same pattern as PythonImportAdapter: config specifies `module` (dotted Python pa
 |---|---|---|---|
 | `module` | Yes | — | Dotted Python module path (e.g. `examples.langgraph_agent`) |
 | `function` | No | `"build_agent"` | Function name in that module |
-| `model` | No | None | Optional model override (passed to `build_agent`) |
+| `model` | No | None | Optional model override — passed as kwarg to `build_agent` so both adapters handle it consistently |
 | `timeout_seconds` | No | 120 | Agent invocation timeout |
 | `run_id` | No | `"run-unknown"` | Run identifier for the artifact |
 
@@ -93,9 +93,8 @@ Same pattern as PythonImportAdapter: config specifies `module` (dotted Python pa
 
 ### Agent Construction
 
-1. Import user module, call `function(payload)` → `CompiledGraph`
+1. Import user module, call `function(payload, model=config.get("model"))` → `CompiledGraph`
 2. Pass `payload` so user can read `allowed_tools`, `disallowed_tools`, `budget`, `context`, `input` for agent construction
-3. Support `model` override from config (passed as kwarg if set)
 
 ### Invocation
 
@@ -127,9 +126,14 @@ def _extract_trajectory(messages):
         elif msg.type == "tool":
             steps.append({"type": "tool_result", "tool": msg.name,
                           "result": msg.content, "duration_ms": None})
-    # Final response is the last message that is not a tool call/result
-    final_content = ...
-    steps.append({"type": "response", "content": final_content, "duration_ms": None})
+    # Final response is the last non-tool message
+    last_content = None
+    for msg in reversed(messages):
+        if msg.type == "ai" and not getattr(msg, "tool_calls", None):
+            last_content = msg.content
+            break
+    if last_content:
+        steps.append({"type": "response", "content": last_content, "duration_ms": None})
     return steps
 ```
 
@@ -152,7 +156,7 @@ def _extract_trajectory(messages):
 
 ### Agent Construction
 
-1. Import user module, call `function(payload)` → `pydantic_ai.Agent`
+1. Import user module, call `function(payload, model=config.get("model"))` → `pydantic_ai.Agent`
 2. Pass `payload` for scenario-appropriate agent configuration
 
 ### Invocation
