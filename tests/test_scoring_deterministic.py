@@ -127,6 +127,65 @@ def test_argument_correctness_exact_match() -> None:
     assert result.score == 1.0
 
 
+def test_argument_correctness_tool_trace_subset_match() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    art = _artifact(
+        [{"type": "tool_call", "tool": "deploy_rollback", "args": {
+            "service": "payment", "region": "us-east-1", "version": "yesterday",
+        }, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["deploy_rollback"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[{"tool": "deploy_rollback", "args_match": "subset",
+                "args": {"service": "payment", "region": "us-east-1"}}],
+    )
+    result = scorer.score(art, sc, {"threshold": 0.9})
+    assert result.score == 1.0
+    assert result.passed is True
+
+
+def test_argument_correctness_tool_trace_missing_required_arg() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    art = _artifact(
+        [{"type": "tool_call", "tool": "deploy_rollback", "args": {
+            "service": "payment",
+        }, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["deploy_rollback"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[{"tool": "deploy_rollback", "args_match": "subset",
+                "args": {"service": "payment", "region": "us-east-1"}}],
+    )
+    result = scorer.score(art, sc, {"threshold": 0.9})
+    assert result.score == 0.0
+    assert result.passed is False
+
+
+def test_argument_correctness_tool_trace_wrong_tool_ignored() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    art = _artifact(
+        [{"type": "tool_call", "tool": "log_query", "args": {
+            "service": "auth", "level": "error",
+        }, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["log_query"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[{"tool": "deploy_rollback", "args_match": "subset",
+                "args": {"service": "payment", "region": "us-east-1"}}],
+    )
+    result = scorer.score(art, sc, {"threshold": 0.9})
+    assert result.passed is False
+
+
 def test_step_efficiency_within_budget() -> None:
     from evalforge.scoring.deterministic.budget import StepEfficiencyScorer
 
