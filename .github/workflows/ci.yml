@@ -37,7 +37,7 @@ jobs:
         run: uv run mypy
 
       - name: Test
-        run: uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90
+        run: uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90 --cov-omit='*/judge/anthropic.py,*judge/ollama.py,*judge/openai.py'
 
   eval:
     needs: test

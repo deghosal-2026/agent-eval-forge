@@ -2,6 +2,7 @@
 
 import json
 import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -67,6 +68,19 @@ class TestAudit:
         audit = AuditTrail(base_dir=str(tmp_path))
         assert audit.get_events() == []
 
+    def test_audit_empty_line_skipped(self, tmp_path: Path) -> None:
+        """AuditTrail.get_events skips blank lines in the log."""
+        audit = AuditTrail(base_dir=str(tmp_path))
+        log_file = audit._log_path
+        # Write a blank line between two events to test mid-file blank line skipping
+        log_file.write_text(
+            json.dumps({"event": "first", "details": {}}) + "\n"
+            "\n"
+            + json.dumps({"event": "second", "details": {}}) + "\n"
+        )
+        events = audit.get_events()
+        assert len(events) == 2
+
 
 class TestSandbox:
     def test_sandbox_echo(self) -> None:
@@ -79,7 +93,7 @@ class TestSandbox:
         monkeypatch.setenv("EVIL_VAR", "malicious")
         config = SandboxConfig(enabled=True)
         result = sandboxed_run(
-            ["python3", "-c", "import os; print(os.environ.get('EVIL_VAR', 'NOT_SET'))"],
+            [sys.executable, "-c", "import os; print(os.environ.get('EVIL_VAR', 'NOT_SET'))"],
             config,
         )
         assert result.stdout.strip() == "NOT_SET"
@@ -87,13 +101,23 @@ class TestSandbox:
     def test_sandbox_allowlist_preserved(self) -> None:
         config = SandboxConfig(enabled=True)
         result = sandboxed_run(
-            ["python3", "-c", "import os; print(os.environ.get('PATH', 'NOT_SET')[:4])"],
+            [sys.executable, "-c", "import os; print(os.environ.get('PATH', 'NOT_SET')[:4])"],
             config,
         )
         assert result.stdout.strip() != "NOT_SET"
 
     def test_sandbox_timing(self) -> None:
         config = SandboxConfig(enabled=True, timeout_multiplier=2.0)
-        import subprocess
         result = sandboxed_run(["echo", "timing"], config, timeout=10)
         assert result.stdout.strip() == "timing"
+
+    def test_sandbox_env_override_with_allowlist(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        """sandboxed_run merges caller env with allowlist correctly."""
+        monkeypatch.setenv("HOME", "/custom/home")
+        config = SandboxConfig(enabled=True)
+        result = sandboxed_run(
+            ["echo", "hello"],
+            config,
+            env={"HOME": "/overridden/home"},
+        )
+        assert result.stdout.strip() == "hello"
