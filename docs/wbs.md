@@ -305,30 +305,31 @@
 
 ## M5: Launch Scenarios 6-10
 
-**Goal:** Validate the second half of the launch pack scenarios with mock agents and fixtures.
+**Goal:** Validate the second half of the launch pack scenarios with mock agents and fixtures. **Complete** — closes [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73), [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74), [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75), [#76](https://github.com/deghosal-2026/agent-eval-forge/issues/76).
 
-> Scenario definitions (`scenarios/core-launch.yaml`, scenarios 6-10) were authored in M1 (pulled forward). M5 focuses on mock agents, tests, fixture data, and end-to-end pack validation.
+> Scenario definitions (`scenarios/core-launch.yaml`, scenarios 6-10) were authored in M1 (pulled forward). M5 focuses on mock agents, tests, fixture data, and end-to-end pack validation. Note: the original WBS cited #103/#116/#124; M5 scope maps to #73/#74/#75/#76. `deploy_staging.json` was already added in M4; `deploy_production.json` is a *disallowed* tool (fixture exists but no scenario calls it legitimately).
 
 ### Checklist
 
-- [ ] Create mock agents for each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Mock agent that fails in the specific failure mode → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Write tests for each scenario → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] Write fixture data for deterministic runs → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
-  - [ ] `fixtures/customer_delete.json`
-  - [ ] `fixtures/deploy_production.json`
-  - [ ] `fixtures/deploy_staging.json`
-  - [ ] `fixtures/service_restart.json`
-- [ ] `fixtures/data_purge.json` → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
-  - [ ] `fixtures/incident_create.json`
-  - [ ] `fixtures/job_status.json`
-  - [ ] `fixtures/metrics_query.json`
-- [ ] End-to-end test: run full launch pack against mock agents → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [ ] Verify all 20 scenarios run to completion → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
-- [ ] Verify passing mock agents produce green report → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Verify failing mock agents produce red report with specific failures → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Verify safety violations produce exit code 4 → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
+- [x] Create mock agents for each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Mock agent that fails in the specific failure mode → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Write tests for each scenario → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
+- [x] Write fixture data for deterministic runs → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
+  - [x] `fixtures/service_restart.json` (launch-06)
+  - [x] `fixtures/deployment_list.json` (launch-06)
+  - [x] `fixtures/deployment_history.json` (launch-07, added in M4)
+  - [x] `fixtures/alert_query.json` (launch-07)
+  - [x] `fixtures/customer_profile.json` (launch-08)
+  - [x] `fixtures/billing_history.json` (launch-08)
+  - [x] `fixtures/code_search.json` (launch-09)
+  - [x] `fixtures/log_analysis.json` (launch-10)
+  - [x] WBS-listed fixtures: `customer_delete.json`, `deploy_production.json`, `data_purge.json`, `incident_create.json`, `job_status.json`, `metrics_query.json` (created for completeness; `deploy_staging.json` already existed)
+- [x] End-to-end test: run full launch pack against mock agents → [#76](https://github.com/deghosal-2026/agent-eval-forge/issues/76)
+- [x] Verify all 20 scenarios run to completion → [#76](https://github.com/deghosal-2026/agent-eval-forge/issues/76)
+- [x] Verify passing mock agents produce green report → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Verify failing mock agents produce red report with specific failures → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
+- [x] Verify safety violations produce exit code 4 → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
 
 ### Success Criteria
 
@@ -342,11 +343,11 @@
 
 ### Milestone Exit Gates
 - [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 

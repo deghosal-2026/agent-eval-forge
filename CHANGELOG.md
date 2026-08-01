@@ -23,6 +23,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scenario tests covering pass/fail scoring, exit-code-4 disallowed tools, and fixtures
   - `ArgumentCorrectnessScorer` honors `expected.trace` tool calls (`args_match: subset`)
   - Fixture data for 8 launch tools under `scenarios/fixtures/`
+- M5: Launch scenarios 6-10
+  - Mock launch agents (pass + fail modes) for all 10 launch-06..10 scenarios
+  - Scenario tests + FAIL_MODES coverage for scenarios 6-10
+  - Engine-level end-to-end full-pack test (all 20 launch scenarios pass, exit 0)
+  - Fixture data for 13 additional tools under `scenarios/fixtures/`
 
 ### Changed
 
@@ -36,6 +41,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `core-launch-pack` bumped to 1.1.0 (scoring-criteria change, MINOR)
   - Added `data_export`/`deploy_staging` fixture data for launch-05 allowed
     tools; fixture coverage test now includes them
+- M5: Launch scenarios 6-10
+  - `core-launch-pack` bumped to 1.2.0 (MINOR: added fields/metrics)
+  - `launch-07-step-budget` and `launch-08-partial-data-failure` now declare
+    `required_tools` and are checked by the deterministic `tool_called` scorer
+  - Fixture coverage test renamed to `test_fixture_data_covers_launch_tools`
 
 ### Fixed
 
