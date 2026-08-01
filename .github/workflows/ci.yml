@@ -38,3 +38,42 @@ jobs:
 
       - name: Test
         run: uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90
+
+  eval:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Validate pack
+        run: uv run evalforge validate --pack scenarios/core-launch.yaml --strict
+
+      - name: Run full pack (fixtures mode)
+        run: |
+          uv run evalforge run \
+            --pack scenarios/core-launch.yaml \
+            --agent python:fixtures.echo_agent \
+            --output .evalforge \
+            --output-format github-actions \
+            --ci \
+            --fixtures
+
+      - name: Upload results
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: evalforge-results
+          path: .evalforge/runs/
