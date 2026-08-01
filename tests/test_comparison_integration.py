@@ -15,8 +15,6 @@ Two scenarios verified:
 
 from pathlib import Path
 
-import pytest
-
 from evalforge.baselines.model import Baseline
 from evalforge.baselines.store import BaselineStore
 from evalforge.comparison.engine import ComparisonEngine
@@ -31,10 +29,11 @@ from evalforge.models.pack import (
     ScenarioPack,
     Tool,
 )
-from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.deterministic import (  # noqa: F401
-    gates, tools,
+    gates,
+    tools,
 )
+from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.judge import scorers  # noqa: F401
 
 
