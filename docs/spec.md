@@ -1763,6 +1763,59 @@ evalforge:
     paths:
       - .evalforge/
     when: always
+  variables:
+    EVALFORGE_LOG_LEVEL: info
+```
+
+### Docker-Based Sandbox Test
+
+For CI pipelines on Linux, EvalForge supports running agents in a Docker container with network isolation:
+
+```yaml
+- name: Sandboxed eval (no network)
+  run: |
+    evalforge run \
+      --pack scenarios/core-launch.yaml \
+      --agent subprocess:python my_agent.py \
+      --sandbox \
+      --container-runtime docker \
+      --network none
+```
+
+The `--network none` flag ensures the agent container has no outbound network access. Combined with `--sandbox`, this provides the strongest isolation guarantee. Requires Docker to be available on the CI runner.
+
+### GITHUB_STEP_SUMMARY Integration
+
+When running in GitHub Actions, EvalForge automatically appends the markdown report to `$GITHUB_STEP_SUMMARY` when the `--ci` flag is set:
+
+```yaml
+- name: Run EvalForge
+  run: |
+    evalforge run \
+      --pack scenarios/core-launch.yaml \
+      --agent python:my_agent.py \
+      --baseline v1.0.0 \
+      --judge openai:gpt-4o-mini \
+      --ci \
+      --output .evalforge/
+  env:
+    EVALFORGE_OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+
+- name: Post step summary
+  run: evalforge report --format markdown >> $GITHUB_STEP_SUMMARY
+  if: always()
+```
+
+The CI pipeline can also use a composite action that handles both running and summary posting:
+
+```yaml
+- name: EvalForge CI
+  uses: evalforge/actions/run@v1
+  with:
+    pack: scenarios/core-launch.yaml
+    agent: "python:my_agent.py"
+    baseline: "v1.0.0"
+    judge: "openai:gpt-4o-mini"
 ```
 
 ### CI Output Format
@@ -1995,6 +2048,42 @@ stubs = ToolStub.load_from_scenario(scenario)
 # During adapter execution, replace tool calls with stubs:
 response = stubs.call("policy_lookup", {"query": "return policy"})
 # Returns: "Premium customers: 60-day return window, free return shipping."
+
+# Simulate errors and latency:
+from evalforge.fixtures import FixtureConfig
+
+config = FixtureConfig(
+    error_rate=0.1,          # 10% of calls return error
+    min_delay_ms=50,         # minimum simulated latency
+    max_delay_ms=500,        # maximum simulated latency
+    error_message="Service temporarily unavailable"
+)
+stubs = ToolStub.load_from_scenario(scenario, config=config)
+```
+
+### Fixture Directory Structure
+
+```
+.evalforge/
+  fixtures/
+    launch-01-account-policy/
+      policy_lookup.json          # tool_name → fixture response
+    launch-02-cross-source/
+      customer_lookup.json
+      ticket_search.json
+    shared/
+      customer_lookup.json        # shared across scenarios
+```
+
+Fixtures are resolved in order: scenario-specific → shared → scenario YAML inline definition. The first match is used.
+
+### Fixture Recording
+
+Use `--record-fixtures` to capture live tool responses as fixtures:
+
+```bash
+evalforge run --pack scenarios.yaml --agent python:my_agent.py --live --record-fixtures
+# Writes .evalforge/fixtures/<scenario_id>/<tool_name>.json
 ```
 
 ## Versioning
@@ -2142,7 +2231,7 @@ diff = compare.compare(
 
 ## Parallel Execution
 
-EvalForge runs scenarios concurrently with worker isolation.
+EvalForge runs scenarios concurrently using a `ThreadPoolExecutor`. Results are returned in the original scenario order, regardless of execution order.
 
 ```bash
 evalforge run --pack scenarios.yaml --agent python:my_agent.py --workers 4
@@ -2156,15 +2245,11 @@ evalforge run --pack scenarios.yaml --agent python:my_agent.py --workers 4
 | `--timeout` | 120 | Per-scenario timeout in seconds |
 | `--isolate` | true | Run each scenario in a fresh process |
 
-### Isolation Guarantees
-
-Each worker:
-- Runs in an independent subprocess
-- Has its own temporary directory
-- Cannot share state with other workers
-- Is killed if it exceeds the per-scenario timeout
+### Implementation
 
 ```python
+from concurrent.futures import ThreadPoolExecutor, as_completed
+
 from evalforge.runner import ParallelRunner
 
 runner = ParallelRunner(
@@ -2175,7 +2260,41 @@ runner = ParallelRunner(
     isolate=True
 )
 results = runner.run_all()
+# Results are in original scenario order
 ```
+
+Key behaviors:
+- Each scenario is submitted to the thread pool as a future
+- Order is preserved by collecting results keyed by scenario ID and re-sorting
+- A single scenario failure does not cancel other in-flight scenarios
+- Worker threads are daemon threads (do not block process exit)
+
+### Error Handling
+
+| Condition | Behavior |
+|-----------|----------|
+| Scenario timeout | Future cancelled, scenario marked `timeout`, pack continues |
+| Scenario crash (exception) | Captured as `error`, error detail written to artifact, pack continues |
+| Worker thread death | Remaining scenarios redistribute across alive workers |
+| All workers dead | Pack fails with infrastructure error (exit code 3) |
+
+```python
+from evalforge.runner import ParallelRunner, RunnerError
+
+try:
+    results = runner.run_all()
+except RunnerError as e:
+    # e.partial contains results from completed scenarios
+    print(f"Completed {len(e.completed)} scenarios before error")
+```
+
+### Isolation Guarantees
+
+Each worker:
+- Runs in an independent subprocess
+- Has its own temporary directory
+- Cannot share state with other workers
+- Is killed if it exceeds the per-scenario timeout
 
 ### Resource Limits
 
@@ -2244,6 +2363,29 @@ evalforge validate --pack scenarios.yaml --agent python:my_agent.py --baseline v
 ```
 
 Strict mode treats warnings as errors. Use in CI to catch configuration drift before running.
+
+### --pre-flight Flag
+
+The `--pre-flight` flag extends validation with runtime connectivity and configuration checks. Useful in CI to fail fast before a long evaluation run:
+
+```bash
+evalforge validate --pack scenarios.yaml --agent python:my_agent.py --baseline v1.0.0 --pre-flight
+```
+
+Pre-flight checks include:
+
+| Check | What It Validates |
+|-------|-------------------|
+| Pack parsing | All YAML/JSON files parse correctly |
+| Agent contract | Agent binary exists and is executable |
+| Judge connectivity | Provider endpoint responds (if judge configured) |
+| HTTP connectivity | HTTP agent URL is reachable (if HTTP adapter) |
+| Baseline existence | Baseline file or git tag resolves |
+| Fixture completeness | All tools have fixtures if `--fixtures` is default |
+| Trust policy | Adapter/tool combo is allowed for pack trust level |
+| Disk space | Sufficient space for output directory |
+
+Pre-flight runs all checks and reports a consolidated pass/fail without running any scenarios. On failure, the exit code is 2 (configuration error).
 
 ## Report Generation
 
@@ -2347,60 +2489,89 @@ evalforge run --pack scenarios.yaml --output-format json,markdown
 }
 ```
 
-## Caching
+## Caching System
 
-EvalForge caches judge results and agent runs to avoid redundant work and cost.
+EvalForge uses three independent cache layers to avoid redundant work. Each layer has a distinct scope, key strategy, and TTL.
 
-### Judge Cache
+### JudgeCache (File-Backed, 24h TTL)
+
+Caches LLM judge results by content hash. File-backed so it survives across CLI invocations.
+
+| Property | Value |
+|----------|-------|
+| Key | `hash(scenario_id + artifact_hash + judge_model + judge_prompt)` |
+| Storage | `.evalforge/cache/judge/` (JSON files by hash prefix) |
+| TTL | 24 hours from creation |
+| Invalidation | `--no-cache` flag or manual `rm -rf .evalforge/cache/judge/` |
 
 ```bash
-# Default: cache enabled
-evalforge run --pack scenarios.yaml --judge openai:gpt-4o-mini
-
-# Disable cache
-evalforge run --pack scenarios.yaml --no-cache
-
-# Clear cache
-evalforge cache clear
+evalforge run --pack scenarios.yaml --no-cache   # bypass all caches
 ```
 
-### What Gets Cached
+```python
+from evalforge.cache import JudgeCache
 
-| Artifact | Cache Key | TTL |
-|----------|-----------|-----|
-| LLM judge score | `hash(scenario_id + artifact_hash + judge_model + judge_prompt)` | 24h |
-| Agent run result | `hash(scenario_id + agent_version + agent_config)` | Session |
-| Schema validation | `hash(scenario_id + schema_hash)` | Pack lifetime |
-
-### Cache Location
-
-```
-.evalforge/
-  cache/
-    judge/           # LLM judge result cache
-    runs/            # Agent run cache (session only)
-    validation/      # Schema validation cache
+cache = JudgeCache(cache_dir=".evalforge/cache/judge")
+result = cache.get(key)    # returns cached ScoreResult or None
+cache.set(key, result)     # persists with TTL timestamp
 ```
 
-### Cost-Aware Caching
-
-EvalForge reports cache usage and cost saved:
+Cost savings are reported with provenance (estimated vs measured):
 
 ```json
 {
   "cache": {
     "judge_hits": 6,
     "judge_misses": 2,
-    "run_hits": 4,
-    "run_misses": 4,
-    "cost_saved_usd": 0.08
+    "cost_saved_usd": 0.048,
+    "cost_provenance": "estimated"
   }
 }
 ```
 
-### Deterministic Caching
+### RunCache (In-Memory, Session-Scoped)
 
-In fixture mode (`--fixtures`), agent run results are fully deterministic and cached permanently. In live mode (`--live`), run results are cached for the session only.
+Caches agent run results for the duration of a single `evalforge run` invocation. Useful in iterative development loops where the same scenario is re-evaluated multiple times.
+
+| Property | Value |
+|----------|-------|
+| Key | `hash(scenario_id + agent_version + agent_config)` |
+| Storage | In-memory dict (not persisted to disk) |
+| TTL | Session lifetime (process exits → cleared) |
+
+```python
+from evalforge.cache import RunCache
+
+cache = RunCache()
+result = cache.get(key)    # returns RunArtifact or None
+cache.set(key, result)
+```
+
+### SchemaCache (Pack-Lifetime Validation)
+
+Caches schema validation results for the lifetime of a single pack load. Avoids re-validating the same scenario schema multiple times during a run.
+
+| Property | Value |
+|----------|-------|
+| Key | `hash(scenario_id + schema_hash)` |
+| Storage | In-memory dict keyed by pack hash |
+| TTL | Pack lifetime (cleared when pack is re-loaded) |
+
+```python
+from evalforge.cache import SchemaCache
+
+cache = SchemaCache(pack_hash="abc123")
+valid = cache.is_valid(scenario_id, schema)
+cache.mark_valid(scenario_id, schema)
+```
+
+### --no-cache Flag
+
+The `--no-cache` flag disables all three cache layers for a single run. Useful in CI to get fresh results every time, or when debugging caching-related issues.
+
+```bash
+evalforge run --pack scenarios.yaml --no-cache
+```
 
 ## Security Model
 
@@ -2413,81 +2584,99 @@ EvalForge must not become an attack vector. The harness handles API keys, subpro
 3. Subprocess agents run with minimal privileges
 4. Everything is auditable
 
-### API Key Handling
+### Dual-Layer API Key Sanitization
+
+EvalForge uses two independent sanitization layers applied to all log output, artifact serialization, and debug dumps:
+
+**Layer 1 — Key-name filter:** Known environment variable names (`OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `EVALFORGE_*`) are matched by name before value expansion and replaced with `[REDACTED]`.
+
+**Layer 2 — Regex redaction:** A set of regex patterns catches credentials that were not caught by name filtering:
+- Bearer tokens: `Authorization: Bearer [A-Za-z0-9._-]+` → `[REDACTED]`
+- API key patterns: `sk-[A-Za-z0-9]+`, `[A-Za-z0-9-_]{20,}` (entropy-based)
+- Password fields in JSON/YAML: `"password": "..."` → `"********"`
 
 ```python
-from evalforge.config import Config
+from evalforge.security.sanitize import sanitize_output
 
-cfg = Config.load()
-
-# Keys loaded from env vars or evalforge.toml
-# Never serialized to run artifacts
-# Never passed to agents (agents use their own keys)
-# Masked in all log output: "sk-...abc123"
-
-api_key = cfg.get_judge_key("openai")  # resolves ${OPENAI_API_KEY}
+# Applied automatically to all artifacts, logs, and run indices
+safe = sanitize_output(raw_output)
+# safe is guaranteed free of known credential patterns
 ```
 
-### Log Sanitization
+### Subprocess Sandbox with Env Allowlist
+
+The sandbox intercepts subprocess creation and applies a strict environment allowlist. By default only `EVALFORGE_SCENARIO_ID` is passed through. Optional `--sandbox` mode also blocks network access via namespace isolation (Linux) or warns on other platforms.
+
+```python
+class SandboxConfig:
+    env_allowlist: set[str] = {"EVALFORGE_SCENARIO_ID"}
+    block_network: bool = False       # Linux-only: unshare(CLONE_NEWNET)
+    tmpfs_mount: bool = False         # Linux-only: ephemeral /tmp
+    container_runtime: str | None = None  # "docker" | None
+```
 
 ```yaml
-# All log output and artifacts sanitize:
-# - API keys → "sk-...abc123"
-# - Passwords → "********"
-# - Tokens → "[REDACTED]"
-```
-
-### Subprocess Sandbox
-
-```python
-class SandboxedSubprocessAdapter(SubprocessAdapter):
-    def run(self, scenario, config):
-        return subprocess.run(
-            ["python", agent_script],
-            input=json.dumps(scenario_input),
-            capture_output=True,
-            timeout=config.get("timeout", 120),
-            # No shell=True (prevents injection)
-            # No env passthrough of API keys
-            env={"EVALFORGE_SCENARIO_ID": scenario["id"]},
-            cwd="/tmp/evalforge-sandbox",
-            # Limit resources via OS controls
-        )
-```
-
-### Scenario Trust Boundaries
-
-| Source | Trust Level | Restrictions |
-|--------|-------------|-------------|
-| Built-in packs | Trusted | Full feature access |
-| Local custom packs | Trusted | Full feature access |
-| External packs | Untrusted | No file system writes outside `.evalforge/`, no network except tool calls |
-
-```bash
-# Run with restricted permissions for external packs
-evalforge run --pack https://example.com/community-pack.yaml --sandbox
+# Agent config with sandbox
+agent:
+  type: subprocess
+  command: python my_agent.py
+  sandbox:
+    env_allowlist: ["EVALFORGE_SCENARIO_ID", "PATH"]
+    block_network: true
 ```
 
 ### Audit Trail
 
-Every run produces an audit event:
+Every run produces an append-only JSON log line. The audit file is written to `.evalforge/audit.log` and is never truncated or modified in place:
 
 ```json
-{
-  "event": "run.completed",
-  "run_id": "run-20260728-001",
-  "timestamp": "2026-07-28T10:00:00Z",
-  "user": "debashish_ghosal",
-  "pack": "core-launch-pack v1.0.0",
-  "agent": {"type": "subprocess", "command": "python my_agent.py"},
-  "sandbox": false,
-  "scenarios": 8,
-  "passed": 6,
-  "failed": 2,
-  "safety_violations": 1,
-  "cost_usd": 0.16,
-  "duration_ms": 42300
-}
+{"event": "run.started",    "run_id": "run-20260728-001", "timestamp": "2026-07-28T10:00:00Z", "pack": "core-launch-pack", "trust": "builtin"}
+{"event": "scenario.started", "run_id": "run-20260728-001", "scenario_id": "launch-01-account-policy", "timestamp": "2026-07-28T10:00:01Z"}
+{"event": "scenario.completed", "run_id": "run-20260728-001", "scenario_id": "launch-01-account-policy", "status": "passed", "duration_ms": 2100, "safety_violation": false}
+{"event": "run.completed",  "run_id": "run-20260728-001", "timestamp": "2026-07-28T10:00:42Z", "passed": 6, "failed": 2, "safety_violations": 1, "cost_usd": 0.16}
+```
+
+Audit events are always written before any side effect (file write, subprocess spawn) to guarantee event ordering.
+
+### Scenario Trust Boundaries
+
+| Source | Trust Level | Description |
+|--------|-------------|-------------|
+| Built-in packs (shipped with EvalForge) | `builtin` | Full feature access, no sandbox required |
+| Local custom packs (file:// paths) | `local` | Full feature access, sandbox optional |
+| Remote/community packs (https://, external repos) | `external` | Restricted — sandbox forced, only subprocess adapter |
+
+```yaml
+pack:
+  name: "community-pack"
+  trust: "external"   # builtin | local | external
+```
+
+### Trust Policy Enforcement Matrix
+
+When a pack declares a trust level, the following policy matrix is enforced at `validate` and `run` time:
+
+| Policy | `builtin` | `local` | `external` |
+|--------|-----------|---------|------------|
+| Subprocess adapter | Allowed | Allowed | Allowed (sandbox forced) |
+| Python import adapter | Allowed | Allowed | **Blocked** |
+| HTTP adapter | Allowed | Allowed | **Blocked** (localhost only if enabled) |
+| Network egress (agent) | Allowed | Allowed | **Blocked** except tool fixtures |
+| Filesystem writes | Any path | Any path | `.evalforge/` only |
+| `--sandbox` flag | Optional | Optional | **Required** |
+| Container runtime | Optional | Optional | Recommended |
+
+Policy violations are reported as hard errors in CI (`--strict`). Use `--explain-policy` to see why a combination is blocked:
+
+```bash
+evalforge validate --pack community-pack.yaml --explain-policy
+
+# Output:
+# Trust: external
+# ─ Adapter policy: subprocess only (python_import and http blocked)
+# ─ Sandbox policy: forced (--sandbox required)
+# ─ Network policy: blocked except tool fixtures
+# ─ Filesystem policy: .evalforge/ only
 ```
 
 ## Testing Strategy
@@ -2499,3 +2688,89 @@ Every run produces an audit event:
 - pytest plugin integration tests
 - Baseline comparison correctness tests
 - Error path coverage for timeouts, crashes, invalid input
+
+## Appendix: Post-M8 Hardening Roadmap
+
+The following action items (A1-A10) were identified during the M8 design and code review. Each item includes an acceptance checklist.
+
+### A1. Enforce Trust Policies
+
+External packs must be forced to the sandboxed subprocess adapter only; disallow `python_import`; restrict HTTP endpoints; validate at validate/run time.
+
+- [x] Define trust→adapter/tool matrix (see Security Model → Trust Policy Enforcement Matrix)
+- [ ] Add a trust-policy evaluator in `validate` (fail under `--strict`)
+- [ ] Enforce policy in `run` (reject disallowed adapters/tools)
+- [ ] Provide `--explain-policy` helper to show why a combo is blocked
+
+### A2. Optional Docker Agent Execution (Linux)
+
+Add `--container-runtime docker` to run agents in containers with no network and least-privilege mounts; provide Linux-only CI job that validates isolation.
+
+- [ ] Define container runner interface (stdin JSON, stdout envelope)
+- [ ] Provide docker runtime path for subprocess/python_import
+- [ ] Linux CI job validates: no network, read-only root, limited mounts
+- [ ] Document operational requirements and fallbacks (macOS/Windows)
+
+### A3. Judge Savings: Provider/Model-Aware (or Usage-Based)
+
+Replace naïve fixed savings with provider/model-aware or usage-based estimates; expose provenance (measured vs estimated).
+
+- [ ] Capture usage/tokens from judge SDKs when possible
+- [ ] Provide per-model default cost assumptions (configurable)
+- [ ] Add provenance flag in `cache_stats` (estimated|measured)
+- [ ] Document assumptions and formulas in docs/design/scoring.md
+
+### A4. Loud Errors for Missing Gate/Scorer
+
+Warn/error on missing gate/scorer instead of silent continue; strict mode fails.
+
+- [ ] Emit warn-level `ScoreResult` when gate/scorer missing
+- [ ] Convert warn→fail under `--strict`
+- [ ] Extend `validate` to catch unknown gates earlier
+
+### A5. Stdlib Logging Across Library Surfaces
+
+Add module-level loggers and keep CLI formatter for human UX.
+
+- [ ] Introduce module loggers with structured message templates
+- [ ] Keep CLI formatter output unchanged
+- [ ] Document logger configuration in CI (docs/ci.md)
+
+### A6. Baseline Compare Modes
+
+Support snapshot comparison (persisted metric-results) vs rescoring; document defaults.
+
+- [ ] Add `--compare-mode {rescore,snapshot}`
+- [ ] Persist metric-results snapshot for baselines
+- [ ] Update docs and add verification tests
+
+### A7. JSON Schema Versioning
+
+Add schema versioning for run output and comparison reports with contract docs.
+
+- [ ] Introduce top-level `schema_version`
+- [ ] Publish JSON Schemas and validate in tests
+- [ ] Versioning policy noted in docs (semver-like)
+
+### A8. Backpressure Knobs for Parallel Runner
+
+Add basic knobs and CI tuning documentation.
+
+- [ ] Add `--max-outstanding` (or similar) backpressure parameter
+- [ ] Document tuning suggestions in docs/ci.md (CPU/memory/time considerations)
+
+### A9. Supply Chain: SBOM + Dependabot/Renovate + Optional pip-audit
+
+Strengthen supply-chain posture.
+
+- [ ] Add SBOM generation step (CycloneDX) and publish artifact
+- [ ] Add `.github/dependabot.yml` (pip + GitHub Actions)
+- [ ] Optional `pip-audit`/`safety` job; document CVE policy
+
+### A10. Judge Clients: Contract Tests + Optional Live-Key Jobs
+
+Raise confidence without forcing API keys in default CI.
+
+- [ ] Add provider-agnostic mock contract tests that cover error/success paths
+- [ ] Add optional CI jobs (manual trigger) for live-key smoke tests
+- [ ] Keep provider files documented if excluded from default coverage
