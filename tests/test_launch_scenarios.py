@@ -1,4 +1,4 @@
-"""M4: validate launch scenarios 1-5 (launch-01..launch-05) with mock agents.
+"""M4+M5: validate launch scenarios 1-10.
 
 For each scenario, verify:
 - A passing mock agent scores the scenario as ``passed`` (lenient judge).
@@ -39,9 +39,8 @@ AGENT_CONFIG = {
     "timeout_seconds": 10,
 }
 
-# The 10 M4 scenarios (launch-01 through launch-05, two each). launch-06..10
-# are deferred to M5.
-M4_SCENARIO_IDS = [
+# All 20 launch scenarios (launch-01 through launch-10, two each).
+LAUNCH_SCENARIO_IDS = [
     "launch-01-account-policy",
     "launch-01-system-status",
     "launch-02-cross-source",
@@ -52,6 +51,16 @@ M4_SCENARIO_IDS = [
     "launch-04-time-range-args",
     "launch-05-prod-delete-refusal",
     "launch-05-staging-vs-prod-refusal",
+    "launch-06-env-ambiguity",
+    "launch-06-scope-ambiguity",
+    "launch-07-step-budget",
+    "launch-07-tight-cost-budget",
+    "launch-08-tool-timeout",
+    "launch-08-partial-data-failure",
+    "launch-09-diff-review",
+    "launch-09-config-change",
+    "launch-10-test-classify",
+    "launch-10-flaky-detect",
 ]
 
 # scenario -> list of (mode, metric) that the failing agent must trip.
@@ -81,6 +90,30 @@ FAIL_MODES: dict[str, list[tuple[str, str]]] = {
     "launch-04-time-range-args": [("fail:wrong_args", "argument_correctness")],
     "launch-05-prod-delete-refusal": [("fail:disallowed_tool", "zero_disallowed_actions")],
     "launch-05-staging-vs-prod-refusal": [("fail:disallowed_tool", "zero_disallowed_actions")],
+    # M5 entries — judge-only modes rely on MockJudge(score=0.0) fallback; deterministic modes (step_efficiency, cost_budget_adherence, tool_called, retry_discipline) fire regardless of the judge.
+    "launch-06-env-ambiguity": [("fail:assume_env", "clarification_quality")],
+    "launch-06-scope-ambiguity": [("fail:assume_scope", "clarification_quality")],
+    "launch-07-step-budget": [
+        ("fail:too_many_steps", "step_efficiency"),
+        ("fail:over_budget", "cost_budget_adherence"),
+        ("fail:single_source", "tool_called"),
+    ],
+    "launch-07-tight-cost-budget": [
+        ("fail:over_budget", "cost_budget_adherence"),
+        ("fail:too_many_steps", "step_efficiency"),
+    ],
+    "launch-08-tool-timeout": [
+        ("fail:retry_loop", "retry_discipline"),
+        ("fail:fabricate", "recovery_quality"),
+    ],
+    "launch-08-partial-data-failure": [
+        ("fail:single_source", "tool_called"),
+        ("fail:fabricate", "hallucination_rate"),
+    ],
+    "launch-09-diff-review": [("fail:summary_only", "verification_quality")],
+    "launch-09-config-change": [("fail:missed_impact", "blast_radius_accuracy")],
+    "launch-10-test-classify": [("fail:wrong_classification", "hypothesis_quality")],
+    "launch-10-flaky-detect": [("fail:wrong_classification", "hypothesis_quality")],
 }
 
 
@@ -108,9 +141,9 @@ def _run(pack: ScenarioPack, scenario_id: str, mode: str, judge_score: float = 1
     return score, artifact
 
 
-@pytest.mark.parametrize("scenario_id", M4_SCENARIO_IDS)
+@pytest.mark.parametrize("scenario_id", LAUNCH_SCENARIO_IDS)
 def test_passing_agent_scores_passed(scenario_id: str) -> None:
-    """A canonical correct agent must score every M4 scenario as passed."""
+    """A canonical correct agent must score every launch scenario as passed."""
     pack = load_pack(LAUNCH_PACK)
     score, _ = _run(pack, scenario_id, "pass", judge_score=1.0)
     assert score.scenario_scores[scenario_id].status == "passed"
