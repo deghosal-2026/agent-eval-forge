@@ -114,6 +114,13 @@ def test_validate_fixtures() -> None:
     assert code == 0, f"validate fixtures failed: {out}"
 
 
+def test_validate_pre_flight_auto_pack() -> None:
+    code, out = _invoke("validate", "--pre-flight")
+    assert code == 0, f"pre-flight failed: {out}"
+    assert "Pack" in out or "scenarios" in out or "CoreLaunch" in out
+    assert "fixture" in out
+
+
 def test_plugins_list() -> None:
     code, out = _invoke("plugins")
     assert code == 0

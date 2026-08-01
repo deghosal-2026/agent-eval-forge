@@ -16,6 +16,8 @@ loads instantly for ``--help``.
 
 from __future__ import annotations
 
+from pathlib import Path
+
 import click
 
 from evalforge.cli.util import parse_agent_spec
@@ -54,6 +56,11 @@ from evalforge.cli.util import parse_agent_spec
     default="terminal",
     show_default=True,
 )
+@click.option(
+    "--pre-flight",
+    is_flag=True,
+    help="Run all validation checks (pack + agent + baseline + fixtures) in one pass",
+)
 def validate(
     pack: str | None,
     agent: str | None,
@@ -62,6 +69,7 @@ def validate(
     check_fixtures: bool,
     output_dir: str,
     output_format: str,
+    pre_flight: bool = False,
 ) -> None:
     """Validate packs, agents, and baselines for correctness.
 
@@ -74,6 +82,14 @@ def validate(
     from evalforge.baselines.store import BaselineStore
     from evalforge.cli.formatter import OutputFormatter
     from evalforge.loading.pack_loader import load_pack
+
+    if pre_flight:
+        if not pack:
+            default_pack = "scenarios/core-launch.yaml"
+            if Path(default_pack).exists():
+                pack = default_pack
+        if not check_fixtures and Path("scenarios/fixtures").exists():
+            check_fixtures = True
 
     results: dict[str, dict[str, object]] = {}
     all_valid = True
@@ -115,6 +131,20 @@ def validate(
                 importlib.import_module(cfg["module"])
             # Verifies the adapter class can be instantiated
             create_adapter(cfg)
+            if cfg["type"] == "http":
+                import httpx
+
+                agent_warnings: list[str] = []
+                try:
+                    r = httpx.head(cfg.get("url", ""), timeout=5)
+                    if r.status_code >= 500:
+                        agent_warnings.append(
+                            f"HTTP endpoint returned {r.status_code}"
+                        )
+                except Exception as e:
+                    agent_warnings.append(f"HTTP connectivity check failed: {e}")
+                if agent_warnings:
+                    results["agent"]["warnings"] = agent_warnings
             results["agent"] = {
                 "valid": True,
                 "message": f"Adapter '{cfg['type']}' created successfully",
@@ -167,7 +197,6 @@ def validate(
             required_tools = {
                 t.name for s in scenario_pack.scenarios for t in s.allowed_tools
             }
-            from pathlib import Path
 
             fixtures_dir = Path("scenarios/fixtures")
             available_files = (
