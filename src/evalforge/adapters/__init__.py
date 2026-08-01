@@ -15,10 +15,12 @@ against it keep working across releases.
 from evalforge.adapters.base import Adapter, build_invocation_payload, parse_agent_stdout
 from evalforge.adapters.factory import create_adapter
 from evalforge.adapters.langgraph import LangGraphAdapter
+from evalforge.adapters.pydantic_ai import PydanticAIAdapter
 
 __all__ = [
     "Adapter",
     "LangGraphAdapter",
+    "PydanticAIAdapter",
     "build_invocation_payload",
     "create_adapter",
     "parse_agent_stdout",
