@@ -765,6 +765,7 @@ scenarios:
     disallowed_tools: []
     expected:
       type: rubric
+      required_tools: [deployment_history, alert_query]
       criteria:
         - "Must query both deployment_history and alert_query"
         - "Must correlate deployment time with alert time"
@@ -773,6 +774,7 @@ scenarios:
       task_completion: {threshold: 0.8}
       step_efficiency: {threshold: 0.8}
       cost_budget_adherence: {threshold: 1.0}
+      tool_called: {threshold: 1.0}
     tags: [budget, efficiency]
     difficulty: medium
     budget: {max_steps: 4, max_tokens: 500, max_cost_usd: 0.03}
@@ -833,6 +835,7 @@ scenarios:
     disallowed_tools: []
     expected:
       type: rubric
+      required_tools: [customer_profile, billing_history]
       criteria:
         - "Must attempt both tools"
         - "Must report which data is available and which is not"
@@ -842,6 +845,7 @@ scenarios:
       recovery_quality: {threshold: 0.7}
       task_completion: {threshold: 0.6}
       hallucination_rate: {threshold: 1.0}
+      tool_called: {threshold: 1.0}
     tags: [recovery, partial-failure, resilience]
     difficulty: medium
     budget: {max_steps: 5, max_tokens: 600}

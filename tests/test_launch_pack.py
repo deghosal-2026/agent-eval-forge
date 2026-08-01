@@ -42,3 +42,16 @@ def test_launch_pack_scenarios_have_required_fields() -> None:
         assert scenario.title
         assert scenario.metrics
         assert scenario.budget is not None
+
+
+def test_launch_pack_m5_required_tools_and_version() -> None:
+    """M5: multi-tool scenarios declare required_tools and tool_called."""
+    pack = load_pack(LAUNCH_PACK)
+    assert pack.pack.version == "1.2.0"
+    by_id = {s.id: s for s in pack.scenarios}
+    step_budget = by_id["launch-07-step-budget"]
+    assert step_budget.expected.required_tools == ["deployment_history", "alert_query"]
+    assert "tool_called" in step_budget.metrics
+    partial = by_id["launch-08-partial-data-failure"]
+    assert partial.expected.required_tools == ["customer_profile", "billing_history"]
+    assert "tool_called" in partial.metrics
