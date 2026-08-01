@@ -32,8 +32,11 @@ class Baseline:
             BaselineStore.validate() to detect version drift.
         runs: All RunArtifacts that represent the accepted state. One per
             scenario in the pack.
+        score_snapshot: Frozen metric results from scoring, used in snapshot
+            comparison mode to avoid rescoring.
         agent: Metadata about the agent that produced these runs
             (framework, version, model, etc).
+        trust: Trust level at baseline creation time.
         git_sha: Git commit SHA of the codebase when this baseline was
             created. Enables traceability back to exact source.
         created: ISO-8601 timestamp of baseline creation.
@@ -43,7 +46,9 @@ class Baseline:
     pack: str
     pack_version: str
     runs: list[RunArtifact]
+    score_snapshot: dict[str, Any] | None = None
     agent: dict[str, Any] = field(default_factory=dict)
+    trust: str = "local"
     git_sha: str | None = None
     created: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
 
@@ -57,7 +62,9 @@ class Baseline:
             "name": self.name,
             "pack": self.pack,
             "pack_version": self.pack_version,
+            "score_snapshot": self.score_snapshot,
             "agent": self.agent,
+            "trust": self.trust,
             "git_sha": self.git_sha,
             "created": self.created,
             "runs": [r.model_dump(mode="json") for r in self.runs],
@@ -77,7 +84,9 @@ class Baseline:
             pack=data["pack"],
             pack_version=data["pack_version"],
             runs=runs,
+            score_snapshot=data.get("score_snapshot"),
             agent=data.get("agent", {}),
+            trust=data.get("trust", "local"),
             git_sha=data.get("git_sha"),
             created=data.get("created", ""),
         )

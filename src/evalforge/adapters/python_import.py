@@ -12,6 +12,12 @@ runner.
 
 When ``sandbox`` is enabled in config, the agent is routed through a
 sandboxed subprocess instead of multiprocessing for stronger isolation.
+
+Note: In parallel execution (workers > 1), this adapter uses
+multiprocessing.Process which uses "spawn" on macOS. The combined
+use of ThreadPoolExecutor + multiprocessing.Process can cause
+import path issues. Prefer the subprocess adapter for parallel runs
+on macOS, or set workers=1 for python_import.
 """
 
 from __future__ import annotations

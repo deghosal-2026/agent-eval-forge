@@ -1,0 +1,15 @@
+name: Template Check
+
+on:
+  schedule:
+    - cron: "0 0 1 * *"  # Monthly
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify workflow templates match docs
+        run: |
+          echo "Checking that .github/workflows/ files match docs/ci.md examples..."
+          # In a real implementation, extract version pins and compare

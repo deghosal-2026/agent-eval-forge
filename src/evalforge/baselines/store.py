@@ -44,8 +44,10 @@ class BaselineStore:
         Overwrites any existing file with the same name.
         """
         self._base.mkdir(parents=True, exist_ok=True)
+        data = baseline.to_dict()
+        data["trust"] = baseline.trust
         self._path(baseline.name).write_text(
-            json.dumps(baseline.to_dict(), indent=2)
+            json.dumps(data, indent=2)
         )
 
     def load(self, name: str) -> Baseline:

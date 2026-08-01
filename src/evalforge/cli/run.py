@@ -170,9 +170,16 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Run in sandbox mode (restricted env, no API key passthrough)",
 )
 @click.option(
-    "--container-runtime",
+    "--max-outstanding",
     default=None,
-    help="Container runtime for agent isolation (e.g. 'docker'). Linux only.",
+    type=int,
+    help="Maximum outstanding parallel tasks (backpressure). Default: no limit.",
+)
+@click.option(
+    "--compare-mode",
+    type=click.Choice(["rescore", "snapshot"]),
+    default="rescore",
+    help="Baseline comparison mode: rescore (default, re-evaluate) or snapshot (use stored scores)",
 )
 @click.option(
     "--trust",
@@ -202,6 +209,8 @@ def run(
     sandbox: bool,
     trust: str | None,
     live: bool | None,
+    max_outstanding: int | None = None,
+    compare_mode: str = "rescore",
     explain_policy: bool = False,
     container_runtime: str | None = None,
 ) -> None:
@@ -281,7 +290,7 @@ def run(
     import time
 
     start_ms = int(time.time() * 1000)
-    artifacts = runner.run_all(tags=tag_list, run_id=run_id, workers=workers)
+    artifacts = runner.run_all(tags=tag_list, run_id=run_id, workers=workers, max_outstanding=max_outstanding)
     duration_ms = int(time.time() * 1000) - start_ms
 
     # Step 3: Score artifacts against scenario expectations
@@ -295,6 +304,7 @@ def run(
     # Step 4: Build the result payload for output and persistence
     pack_meta = runner.pack.pack
     result = {
+        "schema_version": "v0.1",
         "run_id": run_id,
         "pack_name": pack_meta.name,
         "pack_version": pack_meta.version,
@@ -340,9 +350,44 @@ def run(
         store = BaselineStore(base_dir=f"{output}/baselines")
         try:
             baseline_obj = store.load(baseline)
-            # Re-score the baseline's artifacts through the ScoringEngine
-            # so we have a proper RunScore for comparison
-            baseline_score = engine.score_run(baseline_obj.runs, judge=judge_client)
+
+            if compare_mode == "snapshot":
+                if baseline_obj.score_snapshot:
+                    from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
+
+                    scenario_scores: dict[str, ScenarioScore] = {}
+                    for sid, sd in baseline_obj.score_snapshot.get("scenario_scores", {}).items():
+                        metric_results: dict[str, ScoreResult] = {}
+                        for mn, mr in sd.get("metrics", {}).items():
+                            metric_results[mn] = ScoreResult(
+                                metric=mn,
+                                score=mr.get("score"),
+                                threshold=mr.get("threshold"),
+                                passed=mr.get("passed"),
+                                category=mr.get("category", "correctness"),
+                                blocking=mr.get("blocking", False),
+                                detail=mr.get("detail", {}),
+                                source=mr.get("source", "deterministic"),
+                                error=mr.get("error"),
+                            )
+                        scenario_scores[sid] = ScenarioScore(
+                            scenario_id=sid,
+                            metric_results=metric_results,
+                            status=sd.get("status", "failed"),
+                            safety_violations=sd.get("safety_violations", []),
+                        )
+                    baseline_score = RunScore(
+                        scenario_scores=scenario_scores,
+                        totals=baseline_obj.score_snapshot.get("totals", {"passed": 0, "warned": 0, "failed": 0}),
+                        safety_violations=baseline_obj.score_snapshot.get("safety_violations", []),
+                        exit_code=baseline_obj.score_snapshot.get("exit_code", 1),
+                    )
+                else:
+                    click.echo("Baseline has no snapshot, falling back to rescoring", err=True)
+                    baseline_score = engine.score_run(baseline_obj.runs, judge=judge_client)
+            else:
+                baseline_score = engine.score_run(baseline_obj.runs, judge=judge_client)
+
             comp_engine = ComparisonEngine(runner.pack)
             comp_result = comp_engine.compare(
                 baseline_score=baseline_score,

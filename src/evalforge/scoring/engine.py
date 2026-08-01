@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 from dataclasses import asdict
 from typing import TYPE_CHECKING
 
@@ -10,6 +11,8 @@ from evalforge.scoring.hybrid import HybridScorer
 from evalforge.scoring.judge.client import JudgeClient
 from evalforge.scoring.registry import get_scorer
 from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
+
+logger = logging.getLogger("evalforge.scoring")
 
 if TYPE_CHECKING:
     from evalforge.cache import JudgeCache
@@ -50,6 +53,11 @@ class ScoringEngine:
 
     def score_run(self, artifacts: list[RunArtifact], judge: JudgeClient | None = None) -> RunScore:
         self._validate_metrics()
+        logger.info(
+            "Scoring %d artifacts with judge=%s",
+            len(artifacts),
+            judge.name if judge else "None",
+        )
         artifact_map = {a.scenario_id: a for a in artifacts}
         artifact_hashes = {
             a.scenario_id: hashlib.sha256(a.model_dump_json().encode()).hexdigest()[:16]

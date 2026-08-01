@@ -18,10 +18,11 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import re
 import secrets
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed
+from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -31,6 +32,8 @@ from evalforge.adapters.factory import create_adapter
 from evalforge.loading.pack_loader import load_pack
 from evalforge.models.artifact import RunArtifact
 from evalforge.models.pack import ScenarioPack
+
+logger = logging.getLogger("evalforge.runner")
 
 SCENARIO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -106,6 +109,7 @@ class Runner:
         tags: list[str] | None = None,
         run_id: str | None = None,
         workers: int = 1,
+        max_outstanding: int | None = None,
     ) -> list[RunArtifact]:
         """Run all scenarios (optionally filtered by tags) and save results."""
         pack = self.pack
@@ -117,10 +121,12 @@ class Runner:
         start_iso = _now_iso()
         start_ms = _now_ms()
 
+        logger.info("Running %d scenarios with %d workers", len(scenarios), workers)
+
         if workers <= 1:
             artifacts = [self.run_one(s.id, run_id=rid) for s in scenarios]
         else:
-            artifacts = self._run_parallel(scenarios, rid, workers)
+            artifacts = self._run_parallel(scenarios, rid, workers, max_outstanding)
 
         self._save_run(rid, artifacts, pack, scenarios, tags, start_iso, start_ms)
         return artifacts
@@ -130,43 +136,84 @@ class Runner:
         scenarios: list[Any],
         run_id: str,
         workers: int,
+        max_outstanding: int | None = None,
     ) -> list[RunArtifact]:
-        """Run scenarios in parallel using a thread pool."""
+        """Run scenarios in parallel using a thread pool with optional backpressure."""
         artifacts: list[RunArtifact] = []
 
         def _run_one(s: Any) -> RunArtifact:
             return self.run_one(s.id, run_id=run_id)
 
-        with ThreadPoolExecutor(max_workers=workers) as executor:
-            futures = {executor.submit(_run_one, s): s for s in scenarios}
-            for future in as_completed(futures):
-                try:
-                    artifact = future.result()
-                    artifacts.append(artifact)
-                except Exception as exc:
-                    from evalforge.models.artifact import (
-                        Cost,
-                        RunArtifact,
-                        RunOutput,
-                        RunTimestamps,
-                    )
-
-                    scenario = futures[future]
-                    artifacts.append(
-                        RunArtifact(
-                            id=f"{run_id}-{scenario.id}",
-                            scenario_id=scenario.id,
-                            agent=_sanitize_agent(self.agent_config),
-                            timestamp=RunTimestamps(
-                                start=_now_iso(), end=_now_iso(), duration_ms=0,
-                            ),
-                            output=RunOutput(final=None, structured=None),
-                            trajectory=[],
-                            cost=Cost(),
-                            status="error",
-                            error=f"parallel worker error: {exc}",
+        if max_outstanding:
+            futures_set: set[Any] = set()
+            idx = 0
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                while idx < len(scenarios) or futures_set:
+                    while idx < len(scenarios) and (
+                        not max_outstanding or len(futures_set) < max_outstanding
+                    ):
+                        futures_set.add(executor.submit(_run_one, scenarios[idx]))
+                        idx += 1
+                    if not futures_set:
+                        break
+                    done, futures_set = wait(futures_set, return_when=FIRST_COMPLETED)
+                    for future in done:
+                        try:
+                            artifact = future.result()
+                            artifacts.append(artifact)
+                        except Exception as exc:
+                            from evalforge.models.artifact import (
+                                Cost,
+                                RunArtifact,
+                                RunOutput,
+                                RunTimestamps,
+                            )
+                            artifacts.append(
+                                RunArtifact(
+                                    id=f"{run_id}-error",
+                                    scenario_id="unknown",
+                                    agent=_sanitize_agent(self.agent_config),
+                                    timestamp=RunTimestamps(
+                                        start=_now_iso(), end=_now_iso(), duration_ms=0,
+                                    ),
+                                    output=RunOutput(final=None, structured=None),
+                                    trajectory=[],
+                                    cost=Cost(),
+                                    status="error",
+                                    error=f"parallel worker error: {exc}",
+                                )
+                            )
+        else:
+            with ThreadPoolExecutor(max_workers=workers) as executor:
+                futures = {executor.submit(_run_one, s): s for s in scenarios}
+                for future in as_completed(futures):
+                    try:
+                        artifact = future.result()
+                        artifacts.append(artifact)
+                    except Exception as exc:
+                        from evalforge.models.artifact import (
+                            Cost,
+                            RunArtifact,
+                            RunOutput,
+                            RunTimestamps,
                         )
-                    )
+
+                        scenario = futures[future]
+                        artifacts.append(
+                            RunArtifact(
+                                id=f"{run_id}-{scenario.id}",
+                                scenario_id=scenario.id,
+                                agent=_sanitize_agent(self.agent_config),
+                                timestamp=RunTimestamps(
+                                    start=_now_iso(), end=_now_iso(), duration_ms=0,
+                                ),
+                                output=RunOutput(final=None, structured=None),
+                                trajectory=[],
+                                cost=Cost(),
+                                status="error",
+                                error=f"parallel worker error: {exc}",
+                            )
+                        )
 
         scenario_order = {s.id: i for i, s in enumerate(scenarios)}
         artifacts.sort(key=lambda a: scenario_order.get(a.scenario_id, 9999))
@@ -203,6 +250,7 @@ class Runner:
                 "description": pack.pack.description,
                 "min_evalforge": pack.pack.min_evalforge,
             },
+            "trust": pack.pack.trust,
             "pack_hash": self._pack_hash_value,
             "agent": _sanitize_agent(self.agent_config),
             "selected_tags": tags,

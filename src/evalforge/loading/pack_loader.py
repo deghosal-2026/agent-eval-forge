@@ -11,14 +11,20 @@ raw pydantic traceback.
 
 from __future__ import annotations
 
+import hashlib
 import json
 from pathlib import Path
 
 import yaml
 from pydantic import ValidationError
 
+from evalforge.cache import SchemaCache
 from evalforge.models.errors import PackParseError
 from evalforge.models.pack import ScenarioPack
+
+import logging
+
+logger = logging.getLogger("evalforge.loading")
 
 REQUIRED_SCENARIO_FIELDS = ("id", "title", "input")
 
@@ -98,22 +104,44 @@ KNOWN_METRICS = {
 }
 
 
+_SCHEMA_CACHE = SchemaCache()
+
+
 def load_pack(path: str | Path) -> ScenarioPack:
     """Parse and validate a scenario pack from a YAML or JSON file."""
     path = Path(path)
     if not path.exists():
         raise PackParseError(f"pack file not found: {path}", file=str(path))
-    try:
-        raw = path.read_text(encoding="utf-8")
-    except OSError as exc:
-        raise PackParseError(f"could not read pack: {exc}", file=str(path)) from exc
 
+    pack_hash = hashlib.sha256(path.read_bytes()).hexdigest()[:16]
+    if _SCHEMA_CACHE.is_validated(pack_hash):
+        logger.debug("Schema cache hit for pack %s (%s)", path.name, pack_hash)
+    else:
+        logger.debug("Schema cache miss for pack %s (%s) — validating", path.name, pack_hash)
+        try:
+            raw = path.read_text(encoding="utf-8")
+        except OSError as exc:
+            raise PackParseError(f"could not read pack: {exc}", file=str(path)) from exc
+
+        if path.suffix.lower() == ".json":
+            data = _parse_json(raw, path)
+        else:
+            data = _parse_yaml(raw, path)
+
+        _validate(data, path)
+        try:
+            pack = ScenarioPack.model_validate(data)
+        except ValidationError as exc:
+            raise PackParseError(f"invalid pack structure: {exc}", file=str(path)) from exc
+        _SCHEMA_CACHE.mark_validated(pack_hash)
+        return pack
+
+    # Fast path — already validated, re-read for data
+    raw = path.read_text(encoding="utf-8")
     if path.suffix.lower() == ".json":
         data = _parse_json(raw, path)
     else:
         data = _parse_yaml(raw, path)
-
-    _validate(data, path)
     try:
         return ScenarioPack.model_validate(data)
     except ValidationError as exc:
