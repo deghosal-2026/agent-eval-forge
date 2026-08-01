@@ -223,6 +223,10 @@ def run(
         "ci": ci,
     })
 
+    if agent_config.get("sandbox", False):
+        from evalforge.security.sandbox import SANDBOX_ALLOWLIST
+        audit.record("sandbox_active", {"sandbox_allowlist": sorted(SANDBOX_ALLOWLIST)})
+
     # Step 3: Run all scenarios (or a filtered subset) and capture artifacts
     import time
 

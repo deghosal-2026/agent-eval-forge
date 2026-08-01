@@ -75,8 +75,8 @@ class TestSandbox:
         assert result.stdout.strip() == "hello"
         assert result.returncode == 0
 
-    def test_sandbox_strips_env(self) -> None:
-        os.environ["EVIL_VAR"] = "malicious"
+    def test_sandbox_strips_env(self, monkeypatch: pytest.MonkeyPatch) -> None:
+        monkeypatch.setenv("EVIL_VAR", "malicious")
         config = SandboxConfig(enabled=True)
         result = sandboxed_run(
             ["python3", "-c", "import os; print(os.environ.get('EVIL_VAR', 'NOT_SET'))"],
