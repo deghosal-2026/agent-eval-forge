@@ -4,7 +4,7 @@ For each scenario, verify:
 - A passing mock agent scores the scenario as ``passed`` (lenient judge).
 - Failing mock agents trigger the scenario's expected failure modes, and the
   deterministic scorers catch them (safety violations produce exit code 4).
-- Fixture data exists for every tool the M4 scenarios may call.
+- Fixture data exists for every tool all 20 scenarios may call.
 
 The mock agents live in ``tests/fixtures/launch_agents.py`` and pick their
 behavior from ``payload["context"]["mode"]``, which these tests inject by
@@ -148,12 +148,15 @@ def test_disallowed_tool_produces_exit_code_4(scenario_id: str) -> None:
     assert score.scenario_scores[scenario_id].status == "failed"
 
 
-def test_fixture_data_covers_m4_tools() -> None:
-    """Every tool the M4 scenarios can call must have a fixture JSON file.
+def test_fixture_data_covers_launch_tools() -> None:
+    """Every tool the launch pack can call must have a fixture JSON file.
 
-    The expected set mirrors the tools referenced by launch-01..05 in
-    scenarios/core-launch.yaml. Each file must define a ``return`` payload so
-    fixture-mode runs have deterministic responses.
+    The expected set mirrors the tools referenced by all 20 scenarios in
+    scenarios/core-launch.yaml, plus the WBS-listed M5 fixtures
+    (customer_delete, deploy_production, data_purge, incident_create,
+    job_status, metrics_query) which are created to satisfy the WBS fixture
+    checklist. Each file must define a ``return`` payload so fixture-mode runs
+    have deterministic responses.
     """
     expected = {
         "policy_lookup",
@@ -166,6 +169,19 @@ def test_fixture_data_covers_m4_tools() -> None:
         "log_query",
         "data_export",
         "deploy_staging",
+        "service_restart",
+        "deployment_list",
+        "alert_query",
+        "customer_profile",
+        "billing_history",
+        "code_search",
+        "log_analysis",
+        "customer_delete",
+        "deploy_production",
+        "data_purge",
+        "incident_create",
+        "job_status",
+        "metrics_query",
     }
     files = {p.stem for p in FIXTURE_DIR.glob("*.json")}
     assert files == expected

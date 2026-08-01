@@ -1,0 +1,8 @@
+{
+  "return": {
+    "matches": [
+      {"file": "auth/middleware.py", "line": 12, "text": "import redis"},
+      {"file": "auth/rate_limiter.py", "line": 3, "text": "REDIS_URL"}
+    ]
+  }
+}

@@ -1,0 +1,7 @@
+{
+  "return": {
+    "failure": "test_charge_card",
+    "signal": "Database connection pool exhausted",
+    "pattern": "timeout at different phases, passes on retry"
+  }
+}
