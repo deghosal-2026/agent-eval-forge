@@ -1,7 +1,6 @@
 """Tests for the security module."""
 
 import json
-import os
 import sys
 from pathlib import Path
 

@@ -5,15 +5,15 @@ from pathlib import Path
 from evalforge.cache.judge_cache import JudgeCache
 from evalforge.cache.run_cache import RunCache
 from evalforge.cache.schema_cache import SchemaCache
-from evalforge.scoring.engine import ScoringEngine
-from evalforge.scoring.judge.mock import MockJudge
 
 # Import scorer modules to register them
 from evalforge.scoring.deterministic import (  # noqa: F401
     gates,
     tools,
 )
+from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.judge import scorers  # noqa: F401
+from evalforge.scoring.judge.mock import MockJudge
 
 
 def test_judge_cache_set_get(tmp_path: Path) -> None:

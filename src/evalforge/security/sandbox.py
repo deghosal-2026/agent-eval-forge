@@ -11,7 +11,6 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass, field
-from typing import Any
 
 # Minimal env vars allowed in sandbox mode
 SANDBOX_ALLOWLIST = {

@@ -20,8 +20,8 @@ from evalforge.scoring.deterministic import (
 from evalforge.scoring.engine import ScoringEngine
 from evalforge.scoring.judge import scorers  # noqa: F401
 from evalforge.scoring.judge.mock import MockJudge
-from evalforge.scoring.registry import register_scorer, get_scorer, SCORERS
-from evalforge.scoring.result import RunScore, ScoreResult
+from evalforge.scoring.registry import SCORERS, register_scorer
+from evalforge.scoring.result import RunScore
 
 
 def _pack() -> ScenarioPack:
@@ -184,7 +184,6 @@ def test_non_hybrid_metric_unknown_scorer_skipped() -> None:
 
 def test_scorer_exception_caught(tmp_path) -> None:
     """When a scorer raises, engine produces a ScoreResult with error."""
-    from evalforge.scoring.registry import SCORERS
     orig = SCORERS.copy()
     try:
         @register_scorer

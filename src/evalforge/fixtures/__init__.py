@@ -1,3 +1,3 @@
-from evalforge.fixtures.tool_stub import ToolStub, FixtureNotFoundError
+from evalforge.fixtures.tool_stub import FixtureNotFoundError, ToolStub
 
-__all__ = ["ToolStub", "FixtureNotFoundError"]
+__all__ = ["FixtureNotFoundError", "ToolStub"]

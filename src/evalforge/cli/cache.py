@@ -11,7 +11,6 @@ from pathlib import Path
 
 import click
 
-
 cache_group = click.Group(
     name="cache",
     help="Manage evaluation caches.",

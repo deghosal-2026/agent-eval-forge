@@ -238,7 +238,7 @@ def run(
         runner.pack.pack.trust = trust
 
     # Enforce trust policy before running
-    from evalforge.security.policy import TrustPolicy, TrustLevel
+    from evalforge.security.policy import TrustLevel, TrustPolicy
     pack_trust: TrustLevel = runner.pack.pack.trust  # type: ignore[assignment]
     agent_type = agent_config.get("type", "subprocess")
     sandbox_mode = bool(agent_config.get("sandbox", False))

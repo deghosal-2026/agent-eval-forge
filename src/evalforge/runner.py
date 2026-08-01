@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import re
 import secrets
 import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -30,8 +31,6 @@ from evalforge.adapters.factory import create_adapter
 from evalforge.loading.pack_loader import load_pack
 from evalforge.models.artifact import RunArtifact
 from evalforge.models.pack import ScenarioPack
-
-import re
 
 SCENARIO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
 
@@ -145,7 +144,12 @@ class Runner:
                     artifact = future.result()
                     artifacts.append(artifact)
                 except Exception as exc:
-                    from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
+                    from evalforge.models.artifact import (
+                        Cost,
+                        RunArtifact,
+                        RunOutput,
+                        RunTimestamps,
+                    )
 
                     scenario = futures[future]
                     artifacts.append(

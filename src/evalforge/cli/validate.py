@@ -156,7 +156,7 @@ def validate(
 
     # Enforce trust policy when both pack and agent are provided
     if results.get("pack", {}).get("valid") and results.get("agent", {}).get("valid"):
-        from evalforge.security.policy import TrustPolicy, TrustLevel
+        from evalforge.security.policy import TrustLevel, TrustPolicy
         pack_raw = results["pack"].get("trust", "local")
         agent_raw = results["agent"].get("type", "subprocess")
         pack_trust: TrustLevel = pack_raw if isinstance(pack_raw, str) and pack_raw in ("builtin", "local", "external") else "local"  # type: ignore[assignment]

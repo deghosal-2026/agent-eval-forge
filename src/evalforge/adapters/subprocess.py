@@ -15,8 +15,8 @@ import shlex
 from typing import Any
 
 from evalforge.adapters.base import Adapter, _inject_fixtures
-from evalforge.models.errors import AdapterError
 from evalforge.adapters.subprocess_runner import run_agent_in_subprocess
+from evalforge.models.errors import AdapterError
 
 
 class SubprocessAdapter(Adapter):
