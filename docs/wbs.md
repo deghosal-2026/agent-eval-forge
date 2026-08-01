@@ -353,7 +353,7 @@
 
 ## M6: Framework Adapters
 
-**Goal:** Ship tested, documented adapters for LangGraph and PydanticAI. **Complete** — closes [#77](https://github.com/deghosal-2026/agent-eval-forge/issues/77), [#78](https://github.com/deghosal-2026/agent-eval-forge/issues/78), [#79](https://github.com/deghosal-2026/agent-eval-forge/issues/79), [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80), [#83](https://github.com/deghosal-2026/agent-eval-forge/issues/83), [#84](https://github.com/deghosal-2026/agent-eval-forge/issues/84).
+**Goal:** Ship tested, documented adapters for LangGraph and PydanticAI. **Complete** — closes [#77](https://github.com/deghosal-2026/agent-eval-forge/issues/77), [#78](https://github.com/deghosal-2026/agent-eval-forge/issues/78), [#79](https://github.com/deghosal-2026/agent-eval-forge/issues/79), [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80), [#83](https://github.com/deghosal-2026/agent-eval-forge/issues/83), [#84](https://github.com/deghosal-2026/agent-eval-forge/issues/84), [#85](https://github.com/deghosal-2026/agent-eval-forge/issues/85).
 
 ### Checklist
 
@@ -381,6 +381,9 @@
 - [x] Write adapter documentation
   - [x] `docs/adapters/langgraph.md` → [#83](https://github.com/deghosal-2026/agent-eval-forge/issues/83)
   - [x] `docs/adapters/pydantic-ai.md` → [#84](https://github.com/deghosal-2026/agent-eval-forge/issues/84)
+  - [x] `docs/adapters/custom.md` → [#85](https://github.com/deghosal-2026/agent-eval-forge/issues/85)
+  - [x] Adapter contract specification
+  - [x] How to write a custom adapter
   - [x] Adapter contract specification
   - [x] How to write a custom adapter
 
