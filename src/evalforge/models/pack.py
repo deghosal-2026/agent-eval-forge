@@ -106,6 +106,7 @@ class PackMetadata(BaseModel):
     version: str
     description: str | None = None
     min_evalforge: str | None = None
+    trust: str = "local"  # "builtin", "local", "external"
 
 
 class ScenarioPack(BaseModel):

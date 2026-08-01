@@ -25,6 +25,8 @@ class ScoringEngine:
     ) -> None:
         self.pack = pack
         self.judge_cache = judge_cache
+        self._cache_hits: int = 0
+        self._cache_savings_usd: float = 0.0
 
     def _validate_metrics(self) -> None:
         for scenario in self.pack.scenarios:
@@ -91,6 +93,8 @@ class ScoringEngine:
             if name in _HYBRID_METRICS:
                 if cached_result is not None:
                     result = cached_result
+                    self._cache_hits += 1
+                    self._cache_savings_usd += 0.002  # ~$0.002 per saved judge call
                 else:
                     gate_cls = get_scorer(f"{name}_gate")
                     if gate_cls is None:
@@ -153,6 +157,10 @@ class ScoringEngine:
             status=overall if not safety_violations else "failed",
             safety_violations=safety_violations,
         )
+
+    @property
+    def cache_stats(self) -> dict[str, object]:
+        return {"judge_cache_hits": self._cache_hits, "estimated_savings_usd": round(self._cache_savings_usd, 4)}
 
     def _resolve_exit_code(
         self, scenario_scores: dict[str, ScenarioScore], safety_violations: list[str]

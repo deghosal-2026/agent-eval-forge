@@ -147,6 +147,12 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Run with fixtures (deterministic mode, no live tool calls)",
 )
 @click.option(
+    "--live",
+    is_flag=True,
+    default=None,
+    help="Run with live tool calls (disable fixtures)",
+)
+@click.option(
     "--fixtures-dir",
     default="scenarios/fixtures",
     show_default=True,
@@ -161,6 +167,12 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     "--sandbox",
     is_flag=True,
     help="Run in sandbox mode (restricted env, no API key passthrough)",
+)
+@click.option(
+    "--trust",
+    type=click.Choice(["builtin", "local", "external"]),
+    default=None,
+    help="Override pack trust level",
 )
 def run(
     pack: str,
@@ -177,6 +189,8 @@ def run(
     fixtures_dir: str,
     no_cache: bool,
     sandbox: bool,
+    trust: str | None,
+    live: bool | None,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -194,11 +208,16 @@ def run(
     if ci:
         output_format = "json"
 
+    if fixtures is not None and live is not None:
+        raise click.UsageError("--fixtures and --live are mutually exclusive")
+
     # Parse the agent spec and extend with CLI-level overrides
     agent_config = parse_agent_spec(agent)
     agent_config["timeout_seconds"] = timeout
     if fixtures is not None:
         agent_config["fixtures"] = fixtures
+    if live is not None:
+        agent_config["fixtures"] = not live
     agent_config["fixtures_dir"] = fixtures_dir
     agent_config["sandbox"] = sandbox
 
@@ -208,6 +227,9 @@ def run(
     # Step 1: Load pack and create runner
     runner = Runner(agent_config=agent_config, output_dir=output)
     runner.load_pack(pack)
+
+    if trust:
+        runner.pack.pack.trust = trust
 
     # Step 2: Generate run ID and begin audit trail
     run_id = generate_run_id()
@@ -278,6 +300,8 @@ def run(
             for sid, ss in run_score.scenario_scores.items()
         },
     }
+
+    result["cache_stats"] = engine.cache_stats if not no_cache else {}
 
     # Step 5 (optional): Compare against a saved baseline
     if baseline:

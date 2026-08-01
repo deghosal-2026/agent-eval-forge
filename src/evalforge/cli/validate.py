@@ -115,6 +115,7 @@ def validate(
                 "version": meta.version,
                 "scenarios": scenario_count,
                 "tags": tag_count,
+                "trust": meta.trust,
             }
         except Exception as e:
             results["pack"] = {"valid": False, "message": str(e)}

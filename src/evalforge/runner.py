@@ -31,6 +31,15 @@ from evalforge.loading.pack_loader import load_pack
 from evalforge.models.artifact import RunArtifact
 from evalforge.models.pack import ScenarioPack
 
+import re
+
+SCENARIO_ID_PATTERN = re.compile(r"^[a-zA-Z0-9_-]+$")
+
+
+def _validate_scenario_id(scenario_id: str) -> None:
+    if not SCENARIO_ID_PATTERN.match(scenario_id):
+        raise ValueError(f"invalid scenario_id: {scenario_id!r}")
+
 
 def generate_run_id() -> str:
     """Generate a human-sortable run id: run-YYYYMMDD-HHMMSS-<rand>."""
@@ -173,9 +182,12 @@ class Runner:
         artifacts_dir = run_dir / "artifacts"
         if (run_dir / "run.json").exists():
             raise ValueError(f"run already exists: {run_id}")
+        for s in scenarios:
+            _validate_scenario_id(s.id)
         artifacts_dir.mkdir(parents=True, exist_ok=True)
 
         for artifact in artifacts:
+            _validate_scenario_id(artifact.scenario_id)
             artifact_path = artifacts_dir / f"{artifact.scenario_id}.json"
             artifact_path.write_text(artifact.model_dump_json(indent=2), encoding="utf-8")
 
