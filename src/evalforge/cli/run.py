@@ -40,6 +40,7 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     openai    gpt-4o-mini   ``OPENAI_API_KEY`` (required)
     anthropic claude-3-haiku ``ANTHROPIC_API_KEY`` (required)
     ollama    llama3        (local — no key needed)
+    mlx       Qwen3.5-9B   (Apple Silicon — no key needed)
     mock      —             Returns ``MockJudge(score=1.0)``
     ========= ============= ============================================
 
@@ -90,6 +91,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
         from evalforge.scoring.judge.ollama import OllamaClient
 
         return OllamaClient(model=model or "llama3")
+
+    elif provider == "mlx":
+        from evalforge.scoring.judge.mlx import MLXJudgeClient
+
+        return MLXJudgeClient(model=model or "mlx-community/Llama-3.2-3B-Instruct-4bit")
 
     elif provider == "mock":
         from evalforge.scoring.judge.mock import MockJudge

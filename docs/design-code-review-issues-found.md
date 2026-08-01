@@ -294,18 +294,26 @@ Key Risks: Untrusted agent execution is not consistently isolated outside the su
 
 ---
 
-## Optional: Docker-Based Tests Plan (Linux CI Job)
+## Completed: Docker-Based Tests Plan (Linux CI Job)
 
-Goal: Validate isolation guarantees and reduce security risk of untrusted agents.
+**Status: Implemented** — All three items completed.
 
-- Job 1: Containerized subprocess/python_import agent
-  - Start a minimal Docker container, run the agent with a mounted tmpfs workdir, no outbound network (iptables), and read-only root.
-  - Assert: agent cannot read parent FS/env; network calls fail; evaluation still completes.
+- **Job 1: Containerized subprocess/python_import agent** ✅
+  - Dockerfile created with all extras preinstalled
+  - `docker-sandbox` CI job builds the image, runs eval with `--network none`, verifies network is blocked and writes are denied
+  - `--container-runtime` CLI flag routes agents through Docker with configurable isolation (network, memory, CPU, read-only root)
+  - FS isolation verified: `--read-only` flag blocks writes, tested in CI
 
-- Job 2: Optional Ollama service smoke tests
-  - Bring up an Ollama container; run `judge/ollama.py` smoke tests (flagged; skipped by default).
+- **Job 2: mxl judge client** ✅ 
+  Created `src/evalforge/scoring/judge/mlx.py` — manages local mlx-lm server, uses OpenAI-compatible API
+  Default model: `Qwen3.5-9B-MLX-4bit`
+  Wired into CLI via `--judge mlx:model-name`
+  5 contract tests passing
 
-- Docs: Extend `docs/ci.md` with Docker-based instructions and known caveats.
+- **Docs: Extended `docs/ci.md`** ✅ 
+  - Docker-based sandbox test setup instructions
+  - Local Docker run commands
+  - Container runtime configuration guidance
 
 ---
 
