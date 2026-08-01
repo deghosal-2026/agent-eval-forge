@@ -53,7 +53,7 @@ def build_agent(payload: dict) -> object:
         "no_tool": [
             _msg("ai", "I don't have enough information to answer."),
         ],
-        "tool_result": [],  # passthrough — uses same as tool_call
+        "empty_trajectory": [],
     }
     msgs = values.get(mode, values["tool_call"])
     return SimpleNamespace(
