@@ -1,12 +1,16 @@
+from typing import Any
+
 import pytest
 
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
 from evalforge.models.pack import Budget, Expected, Scenario, Tool
+from evalforge.scoring.base import Scorer
 from evalforge.scoring.deterministic import gates  # noqa: F401 — register gate scorers
 from evalforge.scoring.hybrid import HybridScorer
 from evalforge.scoring.judge import scorers  # noqa: F401 — register judge scorers
 from evalforge.scoring.judge.mock import MockJudge
 from evalforge.scoring.registry import get_scorer
+from evalforge.scoring.result import ScoreResult
 
 
 def _artifact() -> RunArtifact:
@@ -61,13 +65,35 @@ def test_hybrid_gate_fail_skips_judge() -> None:
     assert result.score == 0.0
 
 
+def _partial_gate() -> Scorer:
+    """A gate that returns a non-binary score to exercise the judge fallback."""
+
+    class PartialGate(Scorer):
+        name = "partial_gate"
+
+        def score(
+            self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+        ) -> ScoreResult:
+            return ScoreResult(
+                metric=self.name,
+                score=0.5,
+                threshold=1.0,
+                passed=False,
+                category="efficiency",
+                blocking=False,
+                detail={},
+                source="deterministic",
+                error=None,
+            )
+
+    return PartialGate()
+
+
 def test_hybrid_gate_inconclusive_falls_back_to_judge() -> None:
-    gate = get_scorer("retry_discipline_gate")
-    assert gate is not None
-    hybrid = HybridScorer("retry_discipline", gate, MockJudge(score=0.9))
+    hybrid = HybridScorer("retry_discipline", _partial_gate(), MockJudge(score=0.9))
     art = _artifact()
     step = type("Step", (), {"type": "tool_call", "tool": "a", "args": {}, "duration_ms": 1})
-    art.trajectory = [step(), step(), step()]
+    art.trajectory = [step()]
     sc = _scenario(allowed=["a", "b"])
     result = hybrid.score(art, sc, {"threshold": 1.0})
     assert result.source == "judge"  # partial gate score is inconclusive → judge decides

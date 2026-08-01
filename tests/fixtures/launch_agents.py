@@ -495,7 +495,7 @@ def _launch_08_tool_timeout(mode: str) -> dict[str, Any]:
 
     - pass: one health_check call, reports partial results honestly.
     - fail:retry_loop: three consecutive health_check calls → retry_discipline
-      (gate score 0.33 < 0.8, judge fallback pinned 0.0).
+      (deterministic gate fail, no judge fallback).
     - fail:fabricate: claims all services healthy despite a timeout
       → recovery_quality (judge-only).
     """

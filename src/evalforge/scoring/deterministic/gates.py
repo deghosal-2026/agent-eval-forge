@@ -59,8 +59,7 @@ class RetryDisciplineGate(Scorer):
         for i in range(1, len(tool_sequence)):
             if tool_sequence[i] == tool_sequence[i - 1]:
                 repeats += 1
-        total = len(tool_sequence) or 1
-        score = max(0.0, 1.0 - repeats / total)
+        score = 0.0 if repeats > 0 else 1.0
         threshold = metric_config.get("threshold", 0.5)
         return ScoreResult(
             metric=self.name,
