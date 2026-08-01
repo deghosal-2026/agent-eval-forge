@@ -131,7 +131,7 @@ def test_score_hybrid_metric_with_judge() -> None:
 
 
 def test_score_hybrid_metric_skipped_when_gate_missing() -> None:
-    """When a hybrid metric has no registered gate, engine continues gracefully."""
+    """When a hybrid metric has no registered gate, engine records an error result."""
     from evalforge.scoring.engine import _HYBRID_METRICS
     orig = _HYBRID_METRICS.copy()
     _HYBRID_METRICS.add("nonexistent_gate_metric")
@@ -143,7 +143,10 @@ def test_score_hybrid_metric_skipped_when_gate_missing() -> None:
         # Bypass validation since nonexistent_gate_metric is in _HYBRID_METRICS
         ss = engine._score_scenario(pack.scenarios[0], art, judge=None)
         assert "tool_correctness" in ss.metric_results
-        assert "nonexistent_gate_metric" not in ss.metric_results
+        assert "nonexistent_gate_metric" in ss.metric_results
+        sr = ss.metric_results["nonexistent_gate_metric"]
+        assert sr.error == "gate scorer 'nonexistent_gate_metric_gate' not registered"
+        assert sr.score is None
     finally:
         _HYBRID_METRICS.clear()
         _HYBRID_METRICS.update(orig)
@@ -169,7 +172,7 @@ def test_score_hybrid_metric_no_judge() -> None:
 
 
 def test_non_hybrid_metric_unknown_scorer_skipped() -> None:
-    """When a non-hybrid metric has no registered scorer, engine continues gracefully."""
+    """When a non-hybrid metric has no registered scorer, engine records an error result."""
     pack = _pack()
     engine = ScoringEngine(pack)
     scenario = pack.scenarios[0]
@@ -177,9 +180,11 @@ def test_non_hybrid_metric_unknown_scorer_skipped() -> None:
     # Bypass validation by calling _score_scenario directly
     art = _artifact()
     ss = engine._score_scenario(scenario, art, judge=None)
-    # The nonexistent metric is skipped, only tool_correctness is scored
     assert "tool_correctness" in ss.metric_results
-    assert "nonexistent_metric" not in ss.metric_results
+    assert "nonexistent_metric" in ss.metric_results
+    sr = ss.metric_results["nonexistent_metric"]
+    assert sr.error == "scorer 'nonexistent_metric' not registered"
+    assert sr.score is None
 
 
 def test_scorer_exception_caught(tmp_path) -> None:

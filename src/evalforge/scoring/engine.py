@@ -14,6 +14,19 @@ from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
 if TYPE_CHECKING:
     from evalforge.cache import JudgeCache
 
+# Estimated cost per judge call by model (USD). Used when real usage data isn't available.
+# Source: provider pricing pages as of Aug 2026.
+_JUDGE_COST_PER_CALL: dict[str, float] = {
+    "gpt-4o-mini": 0.00015,
+    "gpt-4o": 0.0025,
+    "claude-3-haiku-20240307": 0.00025,
+    "claude-3-5-haiku": 0.00025,
+    "claude-sonnet-4": 0.0015,
+    "llama3": 0.0,  # local
+    "mock": 0.0,
+}
+_DEFAULT_JUDGE_COST: float = 0.002
+
 _HYBRID_METRICS = {"policy_adherence", "retry_discipline"}
 
 
@@ -27,6 +40,7 @@ class ScoringEngine:
         self.judge_cache = judge_cache
         self._cache_hits: int = 0
         self._cache_savings_usd: float = 0.0
+        self._cache_savings_measured: bool = False
 
     def _validate_metrics(self) -> None:
         for scenario in self.pack.scenarios:
@@ -94,12 +108,24 @@ class ScoringEngine:
                 if cached_result is not None:
                     result = cached_result
                     self._cache_hits += 1
-                    self._cache_savings_usd += 0.002  # ~$0.002 per saved judge call
+                    judge_model = getattr(judge, "model", judge.name) if judge else ""
+                    estimated_cost = _JUDGE_COST_PER_CALL.get(judge_model, _DEFAULT_JUDGE_COST)
+                    self._cache_savings_usd += estimated_cost
                 else:
                     gate_cls = get_scorer(f"{name}_gate")
                     if gate_cls is None:
-                        continue
-                    if judge is None:
+                        result = ScoreResult(
+                            metric=name,
+                            score=None,
+                            threshold=config.get("threshold", 0.5),
+                            passed=None,
+                            category="correctness",
+                            blocking=False,
+                            detail={},
+                            source="hybrid",
+                            error=f"gate scorer '{name}_gate' not registered",
+                        )
+                    elif judge is None:
                         result = ScoreResult(
                             metric=name,
                             score=None,
@@ -122,13 +148,6 @@ class ScoringEngine:
             else:
                 scorer_cls = get_scorer(name)
                 if scorer_cls is None:
-                    continue
-                scorer = scorer_cls()
-                if judge is not None:
-                    scorer.judge = judge  # type: ignore[attr-defined]
-                try:
-                    result = scorer.score(artifact, scenario, config)
-                except Exception as exc:
                     result = ScoreResult(
                         metric=name,
                         score=None,
@@ -138,8 +157,26 @@ class ScoringEngine:
                         blocking=False,
                         detail={},
                         source="deterministic",
-                        error=f"scorer failed: {exc}",
+                        error=f"scorer '{name}' not registered",
                     )
+                else:
+                    scorer = scorer_cls()
+                    if judge is not None:
+                        scorer.judge = judge  # type: ignore[attr-defined]
+                    try:
+                        result = scorer.score(artifact, scenario, config)
+                    except Exception as exc:
+                        result = ScoreResult(
+                            metric=name,
+                            score=None,
+                            threshold=config.get("threshold", 0.5),
+                            passed=None,
+                            category="correctness",
+                            blocking=False,
+                            detail={},
+                            source="deterministic",
+                            error=f"scorer failed: {exc}",
+                        )
 
             metric_results[name] = result
             if result.category == "safety" and result.passed is False:
@@ -160,7 +197,11 @@ class ScoringEngine:
 
     @property
     def cache_stats(self) -> dict[str, object]:
-        return {"judge_cache_hits": self._cache_hits, "estimated_savings_usd": round(self._cache_savings_usd, 4)}
+        return {
+            "judge_cache_hits": self._cache_hits,
+            "estimated_savings_usd": round(self._cache_savings_usd, 4),
+            "measured": self._cache_savings_measured,
+        }
 
     def _resolve_exit_code(
         self, scenario_scores: dict[str, ScenarioScore], safety_violations: list[str]

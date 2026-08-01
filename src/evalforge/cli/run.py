@@ -20,6 +20,7 @@ optional-dependency failures (e.g., missing ``rich`` or LLM SDKs).
 from __future__ import annotations
 
 import json
+import os
 from pathlib import Path
 
 import click
