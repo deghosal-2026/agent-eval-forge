@@ -11,10 +11,8 @@ Usage:
 
 from __future__ import annotations
 
-import os
 import subprocess
 import time
-from pathlib import Path
 
 from evalforge.scoring.judge.client import JudgeClient
 from evalforge.scoring.judge.openai import OpenAIClient
@@ -40,7 +38,10 @@ class MLXJudgeClient(JudgeClient):
         self.host = host
         self.port = port
         self.timeout = timeout
-        self._server_process: subprocess.Popen | None = None
+        self._server_process: subprocess.Popen[bytes] | None = None
+        # Type annotation: Popen[bytes] matches the default text=False mode.
+        # When text=True is passed, Popen[str] would be correct, but mlx-lm
+        # server uses stdout/stderr in binary mode (DEVNULL is type-agnostic).
 
     def _ensure_server(self) -> str:
         """Start the mlx-lm server if not already running. Returns the base URL."""
@@ -58,8 +59,13 @@ class MLXJudgeClient(JudgeClient):
             sock.close()
 
         try:
-            self._server_process = subprocess.Popen(
-                [
+            self._server_process = subprocess.Popen(  # noqa: S603
+                [  # noqa: S607
+                    # S607: "mlx_lm.server" is a partial path (no leading / or ./).
+                    # This is intentional — mlx-lm registers itself as a CLI entry
+                    # point that must be found via PATH. The noqa is accepted because
+                    # the user explicitly configured this judge provider and installed
+                    # mlx-lm.
                     "mlx_lm.server",
                     "--model", self.model,
                     "--host", self.host,
@@ -85,7 +91,7 @@ class MLXJudgeClient(JudgeClient):
         except FileNotFoundError:
             raise RuntimeError(
                 "mlx_lm.server not found. Install with: pip install mlx-lm"
-            )
+            ) from None
 
     def judge(
         self, prompt: str, *, max_tokens: int = 512, temperature: float = 0.0

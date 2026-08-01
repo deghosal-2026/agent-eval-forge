@@ -27,7 +27,9 @@ def run_agent_in_subprocess(
         result = run_in_container(agent_cmd, json.dumps(payload), dc, timeout)
         if result.returncode != 0:
             stderr = (result.stderr or "").strip()
-            raise AdapterError(f"container exited with code {result.returncode}: {stderr or '(no stderr)'}")
+            raise AdapterError(
+                f"container exited with code {result.returncode}: {stderr or '(no stderr)'}"
+            )
         return result.stdout or ""
 
     if config.get("fixtures"):
@@ -41,10 +43,13 @@ def run_agent_in_subprocess(
             input=json.dumps(payload),
             env=extra_env,
         )
-    except subprocess.TimeoutExpired:
-        raise AgentTimeoutError(f"agent exceeded {timeout}s timeout")
+    except subprocess.TimeoutExpired as exc:
+        # B904: use `from exc` to chain the original exception, preserving
+        # the traceback for debugging. Without it, the original TimeoutExpired
+        # context is lost when the AdapterError propagates.
+        raise AgentTimeoutError(f"agent exceeded {timeout}s timeout") from exc
     except OSError as exc:
-        raise AdapterError(f"failed to launch agent: {exc}")
+        raise AdapterError(f"failed to launch agent: {exc}") from exc
     if result.returncode != 0:
         stderr = (result.stderr or "").strip()
         raise AdapterError(

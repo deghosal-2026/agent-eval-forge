@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 from pathlib import Path
 
 import yaml
@@ -21,8 +22,6 @@ from pydantic import ValidationError
 from evalforge.cache import SchemaCache
 from evalforge.models.errors import PackParseError
 from evalforge.models.pack import ScenarioPack
-
-import logging
 
 logger = logging.getLogger("evalforge.loading")
 

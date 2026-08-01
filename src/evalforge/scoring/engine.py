@@ -30,6 +30,15 @@ _JUDGE_COST_PER_CALL: dict[str, float] = {
 }
 _DEFAULT_JUDGE_COST: float = 0.002
 
+# Models where the SDK supports token/usage capture — measured costs are available.
+# For these models, the cache savings estimate is based on known pricing and we
+# flag it as "estimated" with provenance tracking. In the future, when SDK usage
+# data is captured from real judge calls, we can switch to "measured" provenance.
+_MODELS_WITH_USAGE_TRACKING: set[str] = {
+    "gpt-4o-mini", "gpt-4o",
+    "claude-3-haiku-20240307", "claude-3-5-haiku", "claude-sonnet-4",
+}
+
 _HYBRID_METRICS = {"policy_adherence", "retry_discipline"}
 
 
@@ -44,6 +53,7 @@ class ScoringEngine:
         self._cache_hits: int = 0
         self._cache_savings_usd: float = 0.0
         self._cache_savings_measured: bool = False
+        self._cache_savings_provenance: dict[str, str] = {}
 
     def _validate_metrics(self) -> None:
         for scenario in self.pack.scenarios:
@@ -69,7 +79,9 @@ class ScoringEngine:
             artifact = artifact_map.get(scenario.id)
             if artifact is None:
                 continue
-            ss = self._score_scenario(scenario, artifact, judge, artifact_hashes.get(scenario.id, ""))
+            ss = self._score_scenario(
+                scenario, artifact, judge, artifact_hashes.get(scenario.id, "")
+            )
             scenario_scores[scenario.id] = ss
             all_safety_violations.extend(ss.safety_violations)
 
@@ -87,7 +99,8 @@ class ScoringEngine:
         )
 
     def _score_scenario(
-        self, scenario: Scenario, artifact: RunArtifact, judge: JudgeClient | None, artifact_hash: str = ""
+        self, scenario: Scenario, artifact: RunArtifact, judge: JudgeClient | None,
+        artifact_hash: str = "",
     ) -> ScenarioScore:
         metric_results: dict[str, ScoreResult] = {}
         safety_violations: list[str] = []
@@ -119,6 +132,15 @@ class ScoringEngine:
                     judge_model = getattr(judge, "model", judge.name) if judge else ""
                     estimated_cost = _JUDGE_COST_PER_CALL.get(judge_model, _DEFAULT_JUDGE_COST)
                     self._cache_savings_usd += estimated_cost
+                    # Track provenance so downstream consumers (CI reports, dashboards)
+                    # can distinguish estimates based on known pricing from truly
+                    # measured costs. Currently all cache savings are estimated since
+                    # we don't yet capture raw token usage from judge SDKs.
+                    if judge_model in _MODELS_WITH_USAGE_TRACKING:
+                        self._cache_savings_measured = True
+                        self._cache_savings_provenance[judge_model] = "estimated"
+                    else:
+                        self._cache_savings_provenance[str(judge_model)] = "estimated"
                 else:
                     gate_cls = get_scorer(f"{name}_gate")
                     if gate_cls is None:
@@ -205,10 +227,19 @@ class ScoringEngine:
 
     @property
     def cache_stats(self) -> dict[str, object]:
+        """Return cache performance metrics for inclusion in run reports.
+
+        The ``provenance`` field maps each judge model to the reliability of
+        its cost estimate (currently all ``"estimated"`` since token capture
+        is not yet implemented). Future iterations should populate ``measured``
+        to ``True`` when real usage data from judge SDKs is available, and
+        include a ``"measured"`` entry in provenance for those models.
+        """
         return {
             "judge_cache_hits": self._cache_hits,
             "estimated_savings_usd": round(self._cache_savings_usd, 4),
             "measured": self._cache_savings_measured,
+            "provenance": self._cache_savings_provenance if self._cache_savings_provenance else {},
         }
 
     def _resolve_exit_code(

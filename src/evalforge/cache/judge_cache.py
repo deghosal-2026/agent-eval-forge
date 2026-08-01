@@ -2,22 +2,44 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import time
 from pathlib import Path
 from typing import Any, cast
 
+# Logger for cache operations. Used at DEBUG level for hits (high volume),
+# INFO for expirations (low volume, useful in CI), and WARNING for corruptions
+# (infrequent but actionable — indicates a bug or filesystem issue).
+logger = logging.getLogger("evalforge.cache")
+
 
 class JudgeCache:
     def __init__(self, base_dir: str | Path = ".evalforge", ttl_hours: int = 24) -> None:
+        """Initialize a file-backed judge result cache.
+
+        Each cached result is a separate JSON file keyed by a SHA-256 hash of
+        the scenario ID, agent config, judge model, and artifact content hash.
+        The 24-hour default TTL balances cost savings with staleness — reruns
+        within a day reuse cached results, but a full CI matrix run on consecutive
+        days will re-evaluate.
+        """
         self._cache_dir = Path(base_dir) / "judge_cache"
         self._cache_dir.mkdir(parents=True, exist_ok=True)
         self._ttl_seconds = ttl_hours * 3600
 
-    def _key(self, scenario_id: str, agent_config: dict[str, Any], judge_model: str, artifact_hash: str) -> str:
-        raw = f"{scenario_id}|{json.dumps(agent_config, sort_keys=True)}|{judge_model}|{artifact_hash}"
+    def _key(
+        self, scenario_id: str, agent_config: dict[str, Any],
+        judge_model: str, artifact_hash: str,
+    ) -> str:
+        raw = (
+            f"{scenario_id}|{json.dumps(agent_config, sort_keys=True)}"
+            f"|{judge_model}|{artifact_hash}"
+        )
         return hashlib.sha256(raw.encode()).hexdigest()[:32]
 
-    def get(self, scenario_id: str, agent_config: dict[str, Any], judge_model: str, artifact_hash: str) -> dict[str, Any] | None:
+    def get(
+        self, scenario_id: str, agent_config: dict[str, Any], judge_model: str, artifact_hash: str
+    ) -> dict[str, Any] | None:
         key = self._key(scenario_id, agent_config, judge_model, artifact_hash)
         path = self._cache_dir / f"{key}.json"
         if not path.exists():
@@ -29,16 +51,22 @@ class JudgeCache:
             age = time.time() - data.get("_cached_at", 0)
             if age > self._ttl_seconds:
                 path.unlink(missing_ok=True)
+                logger.info("Judge cache expired for scenario %s (age=%.0fs)", scenario_id, age)
                 return None
             result = data.get("result")
             if isinstance(result, dict):
+                logger.debug("Judge cache hit for scenario %s", scenario_id)
                 return cast(dict[str, Any], result)
             return None
         except (json.JSONDecodeError, KeyError):
             path.unlink(missing_ok=True)
+            logger.warning("Judge cache corrupted for scenario %s, removed", scenario_id)
             return None
 
-    def set(self, scenario_id: str, agent_config: dict[str, Any], judge_model: str, artifact_hash: str, result: dict[str, Any]) -> None:
+    def set(
+        self, scenario_id: str, agent_config: dict[str, Any], judge_model: str,
+        artifact_hash: str, result: dict[str, Any],
+    ) -> None:
         key = self._key(scenario_id, agent_config, judge_model, artifact_hash)
         path = self._cache_dir / f"{key}.json"
         data = {"_cached_at": time.time(), "result": result}

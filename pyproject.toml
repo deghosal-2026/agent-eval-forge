@@ -82,6 +82,7 @@ addopts = "-ra"
 markers = [
     "evalforge(pack=None, agent=None): run test with EvalForge scenarios",
     "evalforge_tags(tag1, tag2, ...): filter scenarios by tags",
+    "omlx: integration tests requiring a running omlx server",
 ]
 filterwarnings = [
     # Expected: `Expected.schema` is a spec-mandated field name that shadows

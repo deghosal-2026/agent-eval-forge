@@ -5,6 +5,14 @@ Usage:
     logging.getLogger("evalforge").setLevel(logging.INFO)
 
 EvalForge modules log via ``logging.getLogger("evalforge.<module>")``.
+
+Logger hierarchy::
+    evalforge               - root package logger (WARNING by default)
+    evalforge.scoring       - scoring engine operations
+    evalforge.cache         - cache hits, misses, corruptions
+    evalforge.security      - sandbox, audit, policy enforcement
+    evalforge.runner        - scenario runner lifecycle
+    evalforge.loading       - pack YAML/JSON loading and validation
 """
 
 from __future__ import annotations

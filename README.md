@@ -49,6 +49,8 @@ EvalForge is a **release-discipline product** first. The primary job is deciding
 - **Strong default rubrics** — credible pass/fail behavior out of the box
 - **Framework-agnostic by adapter** — not claimed, proven with tested integrations
 
+> **⚠️ Security Warning**: Running without `--sandbox` exposes your API keys and environment variables to the agent process. Always use `--sandbox` in CI. For untrusted scenario packs, also use `--trust external` which restricts adapters to sandboxed subprocess only.
+
 ## What It Is Not
 
 - Not a generic LLM eval framework

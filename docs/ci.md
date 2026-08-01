@@ -148,6 +148,67 @@ eval:
     when: always
 ```
 
+## Hardened CI Configuration
+
+For maximum security — especially when evaluating third-party or community-contributed agents — use the hardened CI template below. This ensures no secrets leak, no network egress occurs, and resource limits apply:
+
+### Hardened GitHub Actions Workflow (Sandboxed + Restricted)
+
+```yaml
+name: Hardened Eval
+
+on: [push]
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  hardened-eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - run: uv sync --extra dev
+      # Pre-flight validation catches misconfigs early
+      - run: uv run evalforge validate --pack scenarios/core-launch.yaml --strict
+      # Full run with sandbox, no secrets in agent env
+      - name: Eval (sandboxed)
+        run: |
+          uv run evalforge run \
+            --pack scenarios/core-launch.yaml \
+            --agent python:my_agent.py \
+            --output .evalforge \
+            --output-format github-actions \
+            --ci \
+            --sandbox
+        env:
+          # Only keys EvalForge needs for LLM judging are available
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+        # Agent process does NOT inherit these env vars
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: eval-results
+          path: .evalforge/runs/
+```
+
+Key hardening measures:
+- **`--sandbox` strips all env vars** except `PATH`, `HOME`, `TMPDIR`, `USER`, and `EVALFORGE_*` from the agent subprocess
+- **API keys for LLM judging** are available to EvalForge itself but NOT passed through to the agent process
+- **`--trust external`** additionally restricts adapters to subprocess-only (no python_import or HTTP in sandbox mode)
+- **No secrets in agent env**: The agent cannot exfiltrate `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, `GITHUB_TOKEN`, or any CI secrets
+- For untrusted packs, add `--trust external` to enforce maximum restrictions
+
+### Verifying Sandbox Effectiveness
+
+To validate that your sandbox configuration is working:
+1. Run with `--explain-policy` to see the resolved trust/adapter/sandbox matrix
+2. Check the audit trail in `.evalforge/audit/` for `sandbox_active` events
+3. Verify no secrets appear in agent logs or artifacts by inspecting the audit log
+
 ## Common Configuration Advice
 
 - **Pin Python version**: Always pin `python-version` to avoid unexpected

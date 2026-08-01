@@ -49,11 +49,27 @@ class OpenAIClient(JudgeClient):
 
 
 def _parse_verdict(content: str) -> JudgeVerdict:
-    """Parse a JSON verdict string, clamping score to [0,1]."""
+    """Parse a JSON verdict string, clamping score to [0,1].
+
+    Some models (e.g. Qwen via omlx) nest the verdict under an ``output`` key
+    when ``response_format: json_object`` is used.  The unwrapping handles that
+    transparently so callers don't need to know about model-specific wrappers.
+
+    The unwrapping is conservative: it only redirects if the inner dict has a
+    ``score`` key, so a legitimate top-level ``output`` field in the verdict
+    schema is not discarded.
+    """
     try:
         data = json.loads(content)
     except json.JSONDecodeError as exc:
         raise JudgeError(f"malformed verdict JSON: {exc}") from exc
+
+    # omlx/Qwen compatibility: unwrap nested response_format wrapper
+    if isinstance(data, dict) and "output" in data and isinstance(data["output"], dict):
+        inner = data["output"]
+        if "score" in inner:
+            data = inner
+
     score = data.get("score", 0.0)
     if not isinstance(score, (int, float)):
         raise JudgeError(f"verdict score must be numeric: {score!r}")

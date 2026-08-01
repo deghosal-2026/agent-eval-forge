@@ -58,6 +58,9 @@ class PythonImportAdapter(Adapter):
         if config.get("sandbox"):
             from evalforge.adapters.subprocess_runner import run_agent_in_subprocess
 
+            # Build an inline script that mirrors the contract of _agent_worker
+            # but runs in a full subprocess rather than a multiprocessing.Process.
+            # This gives us the sandbox's env stripping and timeout multiplier.
             agent_cmd = ["python", "-c", f"""
 import importlib, sys, json
 mod = importlib.import_module('{module}')
@@ -69,7 +72,12 @@ if isinstance(result, dict):
 else:
     print(result)
 """]
-            stdout = run_agent_in_subprocess(payload, agent_cmd, config)
+            # Enforce sandbox=True in the config passed to subprocess_runner
+            # so SandboxConfig.enabled is set even if the top-level config
+            # is ambiguous (e.g. no --sandbox CLI flag but the adapter was
+            # invoked in a sandboxed context by the runner).
+            config_with_sandbox = {**config, "sandbox": True}
+            stdout = run_agent_in_subprocess(payload, agent_cmd, config_with_sandbox)
             return parse_agent_stdout(stdout, strict=bool(config.get("strict_output", False)))
 
         timeout = float(config.get("timeout_seconds", 120))

@@ -22,7 +22,7 @@ import logging
 import re
 import secrets
 import time
-from concurrent.futures import ThreadPoolExecutor, as_completed, wait, FIRST_COMPLETED
+from concurrent.futures import FIRST_COMPLETED, ThreadPoolExecutor, as_completed, wait
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any

@@ -8,9 +8,15 @@ to an append-only JSON log file.
 from __future__ import annotations
 
 import json
+import logging
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
+
+# Logger for audit trail events. Used at INFO level so that security-relevant
+# events are always visible in CI logs. The audit trail itself is the primary
+# record; logging provides a secondary channel for real-time observability.
+logger = logging.getLogger("evalforge.security")
 
 
 class AuditTrail:

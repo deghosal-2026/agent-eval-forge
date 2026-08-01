@@ -6,12 +6,50 @@
     "schema_version": {"type": "string"},
     "run_id": {"type": "string"},
     "pack_name": {"type": "string"},
+    "pack_version": {"type": "string"},
     "total_scenarios": {"type": "integer"},
     "passed": {"type": "integer"},
     "warned": {"type": "integer"},
     "failed": {"type": "integer"},
     "exit_code": {"type": "integer"},
-    "duration_ms": {"type": "integer"}
+    "duration_ms": {"type": "integer"},
+    "safety_violations": {"type": "array", "items": {"type": "string"}},
+    "scenario_scores": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "status": {"type": "string"},
+          "safety_violations": {"type": "array", "items": {"type": "string"}},
+          "metrics": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "score": {"type": ["number", "null"]},
+                "threshold": {"type": "number"},
+                "passed": {"type": ["boolean", "null"]},
+                "category": {"type": "string"},
+                "source": {"type": "string"},
+                "error": {"type": ["string", "null"]}
+              }
+            }
+          }
+        }
+      }
+    },
+    "cache_stats": {
+      "type": "object",
+      "properties": {
+        "judge_cache_hits": {"type": "integer"},
+        "estimated_savings_usd": {"type": "number"},
+        "measured": {"type": "boolean"},
+        "provenance": {"type": "object"}
+      }
+    }
   },
-  "required": ["schema_version", "run_id", "pack_name"]
+  "required": [
+    "schema_version", "run_id", "pack_name", "total_scenarios",
+    "passed", "warned", "failed", "exit_code"
+  ]
 }

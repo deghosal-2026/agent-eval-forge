@@ -6,8 +6,14 @@ and sandbox requirements. This is a conservative v0 that can expand.
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Literal
+
+# Logger for policy enforcement decisions. Used at INFO level when a policy
+# evaluation occurs (via --explain-policy or during run/validate) so users can
+# audit why a particular adapter/trust combination was allowed or denied.
+logger = logging.getLogger("evalforge.security")
 
 TrustLevel = Literal["builtin", "local", "external"]
 

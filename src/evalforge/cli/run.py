@@ -147,7 +147,10 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Per-scenario timeout in seconds",
 )
 @click.option("--ci", is_flag=True, help="CI mode: JSON-only output, structured exit codes")
-@click.option("--quiet", is_flag=True, help="Suppress stdout output (useful in CI when writing files)")
+@click.option(
+    "--quiet", is_flag=True,
+    help="Suppress stdout output (useful in CI when writing files)",
+)
 @click.option(
     "--fixtures",
     is_flag=True,
@@ -270,7 +273,10 @@ def run(
     policy = TrustPolicy(trust=pack_trust, adapter_type=agent_type, sandbox=sandbox_mode)
     allowed, reason = policy.allowed()
     if explain_policy:
-        click.echo(f"Policy evaluation for trust={pack_trust}, adapter={agent_type}, sandbox={sandbox_mode}:")
+        click.echo(
+            f"Policy evaluation for trust={pack_trust}, "
+            f"adapter={agent_type}, sandbox={sandbox_mode}:"
+        )
         click.echo(f"  {'ALLOWED' if allowed else 'DENIED'}: {reason or 'no restrictions'}")
         raise SystemExit(0 if allowed else 1)
     if not allowed:
@@ -298,7 +304,9 @@ def run(
     import time
 
     start_ms = int(time.time() * 1000)
-    artifacts = runner.run_all(tags=tag_list, run_id=run_id, workers=workers, max_outstanding=max_outstanding)
+    artifacts = runner.run_all(
+        tags=tag_list, run_id=run_id, workers=workers, max_outstanding=max_outstanding
+    )
     duration_ms = int(time.time() * 1000) - start_ms
 
     # Step 3: Score artifacts against scenario expectations
@@ -386,7 +394,9 @@ def run(
                         )
                     baseline_score = RunScore(
                         scenario_scores=scenario_scores,
-                        totals=baseline_obj.score_snapshot.get("totals", {"passed": 0, "warned": 0, "failed": 0}),
+                        totals=baseline_obj.score_snapshot.get(
+                            "totals", {"passed": 0, "warned": 0, "failed": 0}
+                        ),
                         safety_violations=baseline_obj.score_snapshot.get("safety_violations", []),
                         exit_code=baseline_obj.score_snapshot.get("exit_code", 1),
                     )

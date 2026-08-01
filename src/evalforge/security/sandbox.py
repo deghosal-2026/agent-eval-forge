@@ -34,9 +34,17 @@ def sandboxed_run(
     timeout: float = 120.0,
     input: str | None = None,
 ) -> subprocess.CompletedProcess[str]:
-    """Run a subprocess with sandbox restrictions."""
+    """Run a subprocess with sandbox restrictions.
+
+    S603 notes: ``subprocess.run`` is called with user-supplied args (the agent
+    command), but this is the security boundary — all callers go through trust
+    policy enforcement before reaching this function. The env stripping here
+    is the primary sandbox mechanism.
+    """
     if not config.enabled:
-        return subprocess.run(
+        # Non-sandboxed path: pass through all env vars for compatibility.
+        # The trust policy already verified this is an allowed combination.
+        return subprocess.run(  # noqa: S603
             args,
             input=input,
             capture_output=True,
@@ -53,7 +61,7 @@ def sandboxed_run(
         for key in config.allowlist.intersection(env):
             sandbox_env[key] = env[key]
 
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603
         args,
         input=input,
         capture_output=True,
@@ -89,11 +97,14 @@ def run_in_container(
         docker_args.extend(["--memory", config.memory_limit])
     if config.cpu_limit:
         docker_args.extend(["--cpus", str(config.cpu_limit)])
-    docker_args.extend(["--tmpfs", "/tmp:noexec,nosuid,size=64m"])
+    # S108: tmpfs path is hardcoded and non-configurable — this is intentional
+    # for the Docker sandbox to prevent accidental FS writes. The tmpfs is
+    # ephemeral and limited to 64MB, so no realistic risk of filling /tmp.
+    docker_args.extend(["--tmpfs", "/tmp:noexec,nosuid,size=64m"])  # noqa: S108
     docker_args.append(config.image)
     docker_args.extend(agent_cmd)
 
-    return subprocess.run(
+    return subprocess.run(  # noqa: S603
         docker_args,
         input=payload_str,
         capture_output=True,

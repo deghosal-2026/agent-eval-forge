@@ -158,8 +158,14 @@ def validate(
     if results.get("pack", {}).get("valid") and results.get("agent", {}).get("valid"):
         from evalforge.security.policy import TrustLevel, TrustPolicy
         pack_raw = results["pack"].get("trust", "local")
+        # mypy complains about assigning str to TrustLevel (Literal[...]), but
+        # the runtime check below handles the fallback. The type: ignore is
+        # intentional and safe — at runtime pack_trust is always a valid literal
+        # after the isinstance guard.
+        pack_trust: TrustLevel = pack_raw  # type: ignore[assignment]
+        if not isinstance(pack_raw, str) or pack_raw not in ("builtin", "local", "external"):
+            pack_trust = "local"
         agent_raw = results["agent"].get("type", "subprocess")
-        pack_trust: TrustLevel = pack_raw if isinstance(pack_raw, str) and pack_raw in ("builtin", "local", "external") else "local"  # type: ignore[assignment]
         agent_type: str = agent_raw if isinstance(agent_raw, str) else "subprocess"
         sandbox = False
         policy = TrustPolicy(trust=pack_trust, adapter_type=agent_type, sandbox=sandbox)

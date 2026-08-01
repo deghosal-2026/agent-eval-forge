@@ -1,14 +1,17 @@
 """Tests for parallel execution."""
 
+import sys
 from pathlib import Path
 
 from evalforge.runner import Runner
+
+_ECHO_AGENT = f"{sys.executable} tests/fixtures/echo_agent.py"
 
 
 def test_serial_execution(tmp_path: Path) -> None:
     """Workers=1 runs scenarios sequentially."""
     runner = Runner(
-        agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10},
+        agent_config={"type": "subprocess", "command": _ECHO_AGENT, "timeout_seconds": 10},
         output_dir=str(tmp_path),
     )
     runner.load_pack("scenarios/core-launch.yaml")
@@ -20,7 +23,7 @@ def test_serial_execution(tmp_path: Path) -> None:
 def test_parallel_execution(tmp_path: Path) -> None:
     """Workers=4 runs all scenarios to completion."""
     runner = Runner(
-        agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10},
+        agent_config={"type": "subprocess", "command": _ECHO_AGENT, "timeout_seconds": 10},
         output_dir=str(tmp_path),
     )
     runner.load_pack("scenarios/core-launch.yaml")
@@ -32,7 +35,7 @@ def test_parallel_execution(tmp_path: Path) -> None:
 def test_parallel_preserves_order(tmp_path: Path) -> None:
     """Parallel results maintain original scenario order."""
     runner = Runner(
-        agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10},
+        agent_config={"type": "subprocess", "command": _ECHO_AGENT, "timeout_seconds": 10},
         output_dir=str(tmp_path),
     )
     runner.load_pack("scenarios/core-launch.yaml")
@@ -45,7 +48,7 @@ def test_parallel_preserves_order(tmp_path: Path) -> None:
 def test_parallel_with_tags(tmp_path: Path) -> None:
     """Parallel execution respects tag filters."""
     runner = Runner(
-        agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10},
+        agent_config={"type": "subprocess", "command": _ECHO_AGENT, "timeout_seconds": 10},
         output_dir=str(tmp_path),
     )
     runner.load_pack("scenarios/core-launch.yaml")
@@ -60,7 +63,7 @@ def test_parallel_with_tags(tmp_path: Path) -> None:
 def test_parallel_error_handling(tmp_path: Path) -> None:
     """Parallel execution captures individual worker errors."""
     runner = Runner(
-        agent_config={"type": "subprocess", "command": "python tests/fixtures/echo_agent.py", "timeout_seconds": 10},
+        agent_config={"type": "subprocess", "command": _ECHO_AGENT, "timeout_seconds": 10},
         output_dir=str(tmp_path),
     )
     runner.load_pack("scenarios/core-launch.yaml")
