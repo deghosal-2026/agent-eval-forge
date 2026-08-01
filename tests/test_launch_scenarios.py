@@ -223,3 +223,24 @@ def test_fixture_data_covers_launch_tools() -> None:
     for path in FIXTURE_DIR.glob("*.json"):
         data = json.loads(path.read_text())
         assert "return" in data, f"{path.name} missing `return` key"
+
+
+def test_full_pack_all_scenarios_pass() -> None:
+    """Run all 20 launch scenarios end-to-end and assert a clean pack run.
+
+    Every scenario's passing mock agent is run through the real adapter and
+    scored by the real engine with a lenient judge. This is the M5 full-pack
+    verification at the engine level (CLI-level runs are M7 scope): all 20
+    scenarios must finish as ``passed``, the run must not warn or fail, and
+    exit code must be 0.
+    """
+    pack = load_pack(LAUNCH_PACK)
+    artifacts = [
+        PythonImportAdapter().run(_with_mode(pack, scenario_id, "pass"), AGENT_CONFIG)
+        for scenario_id in LAUNCH_SCENARIO_IDS
+    ]
+    score = ScoringEngine(pack).score_run(artifacts, judge=MockJudge(score=1.0))
+    assert score.totals == {"passed": 20, "warned": 0, "failed": 0}
+    assert score.exit_code == 0
+    for scenario_id in LAUNCH_SCENARIO_IDS:
+        assert score.scenario_scores[scenario_id].status == "passed", scenario_id
