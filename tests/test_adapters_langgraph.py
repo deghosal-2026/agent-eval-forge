@@ -1,8 +1,4 @@
-from pathlib import Path
-
 from evalforge.models.pack import Scenario
-
-FIXTURES_DIR = Path(__file__).parent / "fixtures"
 
 
 def _scenario(mode: str = "tool_call") -> Scenario:
@@ -75,3 +71,17 @@ def test_langgraph_missing_module() -> None:
     assert artifact.status == "error"
     err = (artifact.error or "").lower()
     assert "langgraph" in err or "extra" in err
+
+
+def test_langgraph_empty_trajectory() -> None:
+    from evalforge.adapters.langgraph import LangGraphAdapter
+
+    adapter = LangGraphAdapter()
+    scenario = Scenario(
+        id="sc-empty", title="Empty", input="hi", context={"mode": "empty_trajectory"}
+    )
+    config = {"module": "fixtures.langgraph_agent", "run_id": "r1", "timeout_seconds": 10}
+    artifact = adapter.run(scenario, config)
+    assert artifact.status == "completed"
+    assert len(artifact.trajectory) == 0
+    assert artifact.output.final is None

@@ -114,7 +114,10 @@ def _extract_cost(result: Any) -> dict[str, Any] | None:
     """Extract usage/cost if the result has a .usage() method (pydantic-ai >=0.0.10)."""
     if not hasattr(result, "usage"):
         return None
-    usage = result.usage()
+    try:
+        usage = result.usage()
+    except Exception:
+        return None
     if usage is None:
         return None
     return {

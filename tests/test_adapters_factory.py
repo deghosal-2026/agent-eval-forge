@@ -23,6 +23,11 @@ def test_create_pydantic_ai() -> None:
     assert isinstance(create_adapter({"type": "pydantic-ai", "module": "x"}), PydanticAIAdapter)
 
 
+def test_create_langgraph() -> None:
+    from evalforge.adapters.langgraph import LangGraphAdapter
+    assert isinstance(create_adapter({"type": "langgraph", "module": "x"}), LangGraphAdapter)
+
+
 def test_unknown_type_raises() -> None:
     with pytest.raises(ValueError, match="unknown adapter type"):
         create_adapter({"type": "nope"})

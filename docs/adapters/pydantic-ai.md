@@ -60,7 +60,9 @@ agent:
 ## Structured Output
 
 If your agent uses a typed result type, the adapter captures `result.data` in
-the artifact's `output.structured` field. The `output.final` is set to
+the artifact's `output.structured` field. The `output.final` is extracted from
+the trajectory's final message content; if no final message exists and
+`result.data` is present and not a string, it falls back to
 `str(result.data)`.
 
 ## Cost Extraction

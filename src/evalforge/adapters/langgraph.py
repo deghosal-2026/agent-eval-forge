@@ -79,7 +79,7 @@ def _extract_trajectory(
             for tc in msg.tool_calls:
                 steps.append({
                     "type": "tool_call",
-                    "tool": tc["name"],
+                    "tool": tc.get("name", ""),
                     "args": tc.get("args", {}),
                     "duration_ms": None,
                 })
