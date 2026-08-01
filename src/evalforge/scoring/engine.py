@@ -1,5 +1,9 @@
 from __future__ import annotations
 
+import hashlib
+from dataclasses import asdict
+from typing import TYPE_CHECKING
+
 from evalforge.models.artifact import RunArtifact
 from evalforge.models.pack import Scenario, ScenarioPack
 from evalforge.scoring.hybrid import HybridScorer
@@ -7,12 +11,20 @@ from evalforge.scoring.judge.client import JudgeClient
 from evalforge.scoring.registry import get_scorer
 from evalforge.scoring.result import RunScore, ScenarioScore, ScoreResult
 
+if TYPE_CHECKING:
+    from evalforge.cache import JudgeCache
+
 _HYBRID_METRICS = {"policy_adherence", "retry_discipline"}
 
 
 class ScoringEngine:
-    def __init__(self, pack: ScenarioPack) -> None:
+    def __init__(
+        self,
+        pack: ScenarioPack,
+        judge_cache: JudgeCache | None = None,
+    ) -> None:
         self.pack = pack
+        self.judge_cache = judge_cache
 
     def _validate_metrics(self) -> None:
         for scenario in self.pack.scenarios:
@@ -23,13 +35,17 @@ class ScoringEngine:
     def score_run(self, artifacts: list[RunArtifact], judge: JudgeClient | None = None) -> RunScore:
         self._validate_metrics()
         artifact_map = {a.scenario_id: a for a in artifacts}
+        artifact_hashes = {
+            a.scenario_id: hashlib.sha256(a.model_dump_json().encode()).hexdigest()[:16]
+            for a in artifacts
+        }
         scenario_scores: dict[str, ScenarioScore] = {}
         all_safety_violations: list[str] = []
         for scenario in self.pack.scenarios:
             artifact = artifact_map.get(scenario.id)
             if artifact is None:
                 continue
-            ss = self._score_scenario(scenario, artifact, judge)
+            ss = self._score_scenario(scenario, artifact, judge, artifact_hashes.get(scenario.id, ""))
             scenario_scores[scenario.id] = ss
             all_safety_violations.extend(ss.safety_violations)
 
@@ -47,7 +63,7 @@ class ScoringEngine:
         )
 
     def _score_scenario(
-        self, scenario: Scenario, artifact: RunArtifact, judge: JudgeClient | None
+        self, scenario: Scenario, artifact: RunArtifact, judge: JudgeClient | None, artifact_hash: str = ""
     ) -> ScenarioScore:
         metric_results: dict[str, ScoreResult] = {}
         safety_violations: list[str] = []
@@ -58,26 +74,47 @@ class ScoringEngine:
                 metric_config if isinstance(metric_config, dict) else metric_config.model_dump()
             )
 
+            # Check judge cache before calling hybrid/judge-based scorers
+            cached_result = None
+            judge_model = getattr(judge, "model", judge.name) if judge else ""
+            if (
+                self.judge_cache
+                and judge
+                and judge_model
+                and artifact_hash
+                and name in _HYBRID_METRICS
+            ):
+                cached = self.judge_cache.get(scenario.id, {}, judge_model, artifact_hash)
+                if cached is not None:
+                    cached_result = ScoreResult(**cached)
+
             if name in _HYBRID_METRICS:
-                gate_cls = get_scorer(f"{name}_gate")
-                if gate_cls is None:
-                    continue
-                if judge is None:
-                    result = ScoreResult(
-                        metric=name,
-                        score=None,
-                        threshold=config.get("threshold", 0.5),
-                        passed=None,
-                        category="correctness",
-                        blocking=False,
-                        detail={},
-                        source="judge",
-                        error="judge not configured",
-                    )
+                if cached_result is not None:
+                    result = cached_result
                 else:
-                    gate = gate_cls() if isinstance(gate_cls, type) else gate_cls
-                    hybrid = HybridScorer(name, gate, judge)
-                    result = hybrid.score(artifact, scenario, config)
+                    gate_cls = get_scorer(f"{name}_gate")
+                    if gate_cls is None:
+                        continue
+                    if judge is None:
+                        result = ScoreResult(
+                            metric=name,
+                            score=None,
+                            threshold=config.get("threshold", 0.5),
+                            passed=None,
+                            category="correctness",
+                            blocking=False,
+                            detail={},
+                            source="judge",
+                            error="judge not configured",
+                        )
+                    else:
+                        gate = gate_cls() if isinstance(gate_cls, type) else gate_cls
+                        hybrid = HybridScorer(name, gate, judge)
+                        result = hybrid.score(artifact, scenario, config)
+                        if self.judge_cache and judge_model and artifact_hash:
+                            self.judge_cache.set(
+                                scenario.id, {}, judge_model, artifact_hash, asdict(result)
+                            )
             else:
                 scorer_cls = get_scorer(name)
                 if scorer_cls is None:

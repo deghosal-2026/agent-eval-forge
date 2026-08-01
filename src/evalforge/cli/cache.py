@@ -11,6 +11,7 @@ from pathlib import Path
 
 import click
 
+
 cache_group = click.Group(
     name="cache",
     help="Manage evaluation caches.",
@@ -24,24 +25,41 @@ cache_group = click.Group(
     show_default=True,
     help="Output directory whose caches should be cleared",
 )
-def cache_clear(output_dir: str) -> None:
-    """Clear all cached evaluation data.
+@click.option(
+    "--cache-type",
+    type=click.Choice(["all", "judge", "runs", "baselines"]),
+    default="all",
+    help="Which cache type to clear",
+)
+def cache_clear(output_dir: str, cache_type: str) -> None:
+    """Clear evaluation caches.
 
-    Removes the following subdirectories from the output directory:
-    - ``runs/`` — all saved run results and scores
-    - ``baselines/`` — all saved golden baselines
-    - ``cache/`` — any cached judge results
-
-    Use this to start fresh or reclaim disk space.
+    Removes the specified cache subdirectories from the output directory.
     """
     base = Path(output_dir)
     cleared = 0
-    for subdir in ["runs", "baselines", "cache"]:
+    targets = {
+        "all": ["runs", "baselines", "judge_cache"],
+        "judge": ["judge_cache"],
+        "runs": ["runs"],
+        "baselines": ["baselines"],
+    }[cache_type]
+    for subdir in targets:
         path = base / subdir
         if path.exists():
             shutil.rmtree(path)
             cleared += 1
     click.echo(
-        f"Cleared {cleared} cache director{'y' if cleared == 1 else 'ies'}"
+        f"Cleared {cleared} cache director{'ies' if cleared != 1 else 'y'}"
         f" under {output_dir}/"
     )
+
+
+@cache_group.command("stats")
+@click.option("--output-dir", default=".evalforge", show_default=True)
+def cache_stats(output_dir: str) -> None:
+    from evalforge.cache import JudgeCache
+
+    jc = JudgeCache(base_dir=output_dir)
+    s = jc.stats()
+    click.echo(f"Judge cache: {s['files']} files, {s['size_bytes']} bytes")

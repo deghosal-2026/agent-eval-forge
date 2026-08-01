@@ -146,6 +146,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     default=None,
     help="Run with fixtures (deterministic mode, no live tool calls)",
 )
+@click.option(
+    "--no-cache",
+    is_flag=True,
+    help="Disable all caching (judge cache, run cache)",
+)
 def run(
     pack: str,
     agent: str,
@@ -158,6 +163,7 @@ def run(
     timeout: int,
     ci: bool,
     fixtures: bool | None,
+    no_cache: bool,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -197,7 +203,10 @@ def run(
     duration_ms = int(time.time() * 1000) - start_ms
 
     # Step 3: Score artifacts against scenario expectations
-    engine = ScoringEngine(runner.pack)
+    from evalforge.cache import JudgeCache as _JudgeCache
+
+    judge_cache = None if no_cache else _JudgeCache(base_dir=output)
+    engine = ScoringEngine(runner.pack, judge_cache=judge_cache)
     judge_client = _resolve_judge(judge)
     run_score = engine.score_run(artifacts, judge=judge_client)
 
