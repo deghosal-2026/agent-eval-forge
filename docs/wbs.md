@@ -357,7 +357,7 @@
 
 ### Checklist
 
-- [x] Design doc written and approved (`docs/2026-07-31-m6-framework-adapters-design.md`) → closes design phase
+- [x] Design doc written and approved (`docs/design/adapters.md`) → closes design phase
 - [x] Implement LangGraph Adapter (`src/evalforge/adapters/langgraph.py`) → [#77](https://github.com/deghosal-2026/agent-eval-forge/issues/77)
   - [x] Invoke LangGraph graph with scenario input
   - [x] Extract state graph trajectory nodes
@@ -413,53 +413,53 @@
 
 ### Checklist
 
-- [ ] Implement CLI commands (`src/evalforge/cli/`) → [#94](https://github.com/deghosal-2026/agent-eval-forge/issues/94)
-  - [ ] `evalforge run` — run a scenario pack → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
-    - [ ] `--pack` (required)
-    - [ ] `--agent` (required)
-    - [ ] `--baseline` (optional)
-    - [ ] `--judge` (optional)
-    - [ ] `--output` (default: `.evalforge/`)
-- [ ] `--output-format` (json, markdown, default: both) → [#93](https://github.com/deghosal-2026/agent-eval-forge/issues/93)
-    - [ ] `--workers` (default: 1)
-    - [ ] `--timeout` (default: 120)
-    - [ ] `--fixtures` / `--live` (default: fixtures)
-    - [ ] `--ci` flag for CI mode
-    - [ ] `--tags` filter
-  - [ ] `evalforge validate` — validate packs, agents, baselines → [#87](https://github.com/deghosal-2026/agent-eval-forge/issues/87)
-    - [ ] `--pack`
-    - [ ] `--agent`
-    - [ ] `--baseline`
-    - [ ] `--strict`
-    - [ ] `--check-fixtures`
-  - [ ] `evalforge compare` — compare two runs → [#88](https://github.com/deghosal-2026/agent-eval-forge/issues/88)
-    - [ ] `--candidate`
-    - [ ] `--baseline`
-  - [ ] `evalforge baseline` — baseline management
-    - [ ] `baseline save --name <name> --run <run>`
-    - [ ] `baseline list`
-    - [ ] `baseline validate --baseline <name> --pack <pack>`
-- [ ] `evalforge cache clear` → [#90](https://github.com/deghosal-2026/agent-eval-forge/issues/90)
-- [ ] `evalforge plugins list` → [#90](https://github.com/deghosal-2026/agent-eval-forge/issues/90)
-- [ ] `evalforge --help` with useful docs → [#91](https://github.com/deghosal-2026/agent-eval-forge/issues/91)
-- [ ] Implement pytest plugin (`src/evalforge/pytest_plugin.py`) → [#92](https://github.com/deghosal-2026/agent-eval-forge/issues/92)
-- [ ] `evalforge test run` command → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
-  - [ ] Auto-discovery of scenario packs
-- [ ] pytest fixture for scenario injection → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
-  - [ ] pytest markers for tags (`@pytest.mark.evalforge.tags("retrieval")`)
-- [ ] Custom pytest report with scenario pass/fail → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Implement output formatting → [#93](https://github.com/deghosal-2026/agent-eval-forge/issues/93)
-  - [ ] JSON output (default, CI-friendly)
-  - [ ] Markdown report (human-readable)
-  - [ ] Terminal output (colored, progress during run)
-  - [ ] GitHub Actions summary comment → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96)
-- [ ] Write CLI integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] `evalforge run` with minimal config → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
-  - [ ] `evalforge validate` on valid and invalid packs
-  - [ ] `evalforge compare` between two known runs
-- [ ] `evalforge baseline save/list/validate` → [#89](https://github.com/deghosal-2026/agent-eval-forge/issues/89)
-  - [ ] Exit codes verified for all scenarios
-- [ ] Write pytest plugin integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] Implement CLI commands (`src/evalforge/cli/`) → [#94](https://github.com/deghosal-2026/agent-eval-forge/issues/94)
+  - [x] `evalforge run` — run a scenario pack → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
+    - [x] `--pack` (required)
+    - [x] `--agent` (required)
+    - [x] `--baseline` (optional)
+    - [x] `--judge` (optional)
+    - [x] `--output` (default: `.evalforge/`)
+- [x] `--output-format` (json, markdown, terminal, github-actions) → [#93](https://github.com/deghosal-2026/agent-eval-forge/issues/93)
+    - [x] `--workers` (default: 1)
+    - [x] `--timeout` (default: 120)
+    - [x] `--fixtures` / `--live` (default: fixtures)
+    - [x] `--ci` flag for CI mode
+    - [x] `--tags` filter
+  - [x] `evalforge validate` — validate packs, agents, baselines → [#87](https://github.com/deghosal-2026/agent-eval-forge/issues/87)
+    - [x] `--pack`
+    - [x] `--agent`
+    - [x] `--baseline`
+    - [x] `--strict`
+    - [x] `--check-fixtures`
+  - [x] `evalforge compare` — compare two runs → [#88](https://github.com/deghosal-2026/agent-eval-forge/issues/88)
+    - [x] `--candidate`
+    - [x] `--baseline`
+  - [x] `evalforge baseline` — baseline management
+    - [x] `baseline save --name <name> --run <run>`
+    - [x] `baseline list`
+    - [x] `baseline validate --baseline <name> --pack <pack>`
+- [x] `evalforge cache clear` → [#90](https://github.com/deghosal-2026/agent-eval-forge/issues/90)
+- [x] `evalforge plugins list` → [#90](https://github.com/deghosal-2026/agent-eval-forge/issues/90)
+- [x] `evalforge --help` with useful docs → [#91](https://github.com/deghosal-2026/agent-eval-forge/issues/91)
+- [x] Implement pytest plugin (`src/evalforge/pytest_plugin.py`) → [#92](https://github.com/deghosal-2026/agent-eval-forge/issues/92)
+- [x] `evalforge test run` command with auto-discovery → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
+  - [x] Auto-discovery of scenario packs
+- [x] pytest fixture for scenario injection → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
+  - [x] pytest markers for tags (`@pytest.mark.evalforge_tags("retrieval")`)
+- [x] Custom pytest report with scenario pass/fail → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Implement output formatting → [#93](https://github.com/deghosal-2026/agent-eval-forge/issues/93)
+  - [x] JSON output (default, CI-friendly)
+  - [x] Markdown report (human-readable)
+  - [x] Terminal output (colored, progress during run)
+  - [x] GitHub Actions summary comment → [#96](https://github.com/deghosal-2026/agent-eval-forge/issues/96)
+- [x] Write CLI integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] `evalforge run` with minimal config → [#86](https://github.com/deghosal-2026/agent-eval-forge/issues/86)
+  - [x] `evalforge validate` on valid and invalid packs
+  - [x] `evalforge compare` between two known runs
+- [x] `evalforge baseline save/list/validate` → [#89](https://github.com/deghosal-2026/agent-eval-forge/issues/89)
+  - [x] Exit codes verified for all scenarios
+- [x] Write pytest plugin integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
 
 ### Success Criteria
 
@@ -469,16 +469,16 @@
 - `evalforge baseline save/list/validate` works end-to-end
 - Pytest plugin runs scenarios as pytest tests with correct pass/fail
 - All CLI exit codes (0-4) are correctly produced
-- JSON and markdown reports are well-formed
+- JSON, markdown, and github-actions reports are well-formed
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] Code review completed
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 

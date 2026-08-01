@@ -1,10 +1,8 @@
-# M1: Core Runner — Design
+# Core Runner — Design
 
-**Date:** 2026-07-30
-**Status:** Approved (design decisions incorporated)
-**Dependencies:** Spec v1.0 (approved), WBS v1.0 (M0 complete)
+Covers the core runner architecture, adapter contract, subprocess I/O contract, and data flow.
 
-## Decisions (from design review)
+## Decisions
 
 1. **Subprocess I/O contract:** EvalForge passes scenario JSON on stdin; agent
    writes a JSON envelope (`{output, trajectory, cost, status}`) to stdout.

@@ -3,38 +3,38 @@
 The CLI is a thin wrapper over the core library (spec §"Runtime Interfaces").
 All three surfaces — CLI, pytest plugin, and Python library — share the same
 core runner, scorer, and adapter engine; nothing business-logic lives here.
-
-This module only defines the command group and the `version` command. The
-full command surface (`run`, `validate`, `compare`, `baseline`, ...) lands in
-M7. Each future command registers via the `@main.command()` decorator so the
-group stays extensible without centralizing dispatch.
 """
 
+from __future__ import annotations
+
 import click
+
+from evalforge.cli.baseline import baseline_group
+from evalforge.cli.cache import cache_group
+from evalforge.cli.compare import compare
+from evalforge.cli.plugins import plugins
+from evalforge.cli.run import run
+from evalforge.cli.test import test_group
+from evalforge.cli.validate import validate
 
 
 @click.group()
 def main() -> None:
-    """EvalForge — gate agent releases with evidence.
-
-    The root group carries no behavior of its own; it exists to namespace
-    subcommands and share click options. Command bodies delegate to the core
-    runner / scorer / compare modules so behavior is identical whether invoked
-    from the shell, pytest, or the library API.
-    """
+    """EvalForge — gate agent releases with evidence."""
 
 
 @main.command()
 def version() -> None:
-    """Print the installed version.
-
-    Useful as a smoke test that the package is importable and the console
-    entry point is wired correctly (used by CI and by `pip install -e .`
-    verification). The import is deferred to function scope so `evalforge
-    --help` and other lightweight commands never pay the cost of importing
-    the full package, and so a broken import fails loudly only on the
-    commands that actually need the library.
-    """
+    """Print the installed version."""
     from evalforge import __version__
 
     click.echo(__version__)
+
+
+main.add_command(run)
+main.add_command(validate)
+main.add_command(compare)
+main.add_command(baseline_group)
+main.add_command(cache_group)
+main.add_command(plugins)
+main.add_command(test_group)

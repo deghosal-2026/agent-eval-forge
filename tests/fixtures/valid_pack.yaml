@@ -6,8 +6,10 @@ scenarios:
   - id: "sc-1"
     title: "Scenario one"
     input: "input one"
+    tags: [tag-a, tag-b]
     metrics:
       task_completion: {threshold: 1.0}
   - id: "sc-2"
     title: "Scenario two"
     input: "input two"
+    tags: [tag-a]

@@ -1,17 +1,15 @@
-# M2: Scoring Engine — Design
+# Scoring Engine — Design
 
-**Status:** Approved
-**Date:** 2026-07-30
-**Depends on:** M1 Core Runner (complete), Spec v1.0 §"Scoring Engine", §"Judge Configuration", §"Validator Contract", §"CI Integration"
+Covers the scoring architecture: deterministic scorers, LLM-as-judge, hybrid scoring, evaluation hierarchy, and exit codes.
 
-## 1. Goal
+## Goal
 
-Score M1 `RunArtifact`s against scenario `expected`/`metrics` using deterministic
+Score run artifacts against scenario `expected`/`metrics` using deterministic
 scorers, LLM-as-judge scorers, and hybrid scoring, then aggregate results per
 scenario and per run with the safety > correctness > efficiency hierarchy and
 CI exit-code resolution.
 
-## 2. Metric Vocabulary
+## Metric Vocabulary
 
 Launch-pack metric names are the canonical surface. The spec's scoring catalog
 names (`exact_match`, `schema_valid`, `field_presence`, `tool_called`,
@@ -22,7 +20,7 @@ launch-pack equivalent. Catalog scorers with no launch-pack counterpart
 `conflict_explanation`, `hallucination_check`) are registered but marked
 not-in-launch-pack and deferred unless trivial.
 
-### 2.1 Metric Classification
+### Metric Classification
 
 **Deterministic (8):**
 
@@ -61,7 +59,7 @@ fallback when the gate is inconclusive.
 | `policy_adherence` | trajectory tool calls vs allowed/disallowed/approval-boundary rules | semantic policy-respect assessment |
 | `retry_discipline` | detect repeated identical tool calls / retry loops | semantic recovery-behavior assessment |
 
-## 3. Architecture
+## Architecture
 
 ```
 src/evalforge/scoring/
@@ -85,7 +83,7 @@ src/evalforge/scoring/
 └── hybrid.py          # HybridScorer wrapper
 ```
 
-### 3.1 Scorer ABC (`scoring/base.py`)
+### Scorer ABC (`scoring/base.py`)
 
 ```python
 class Scorer(ABC):
@@ -95,7 +93,7 @@ class Scorer(ABC):
               metric_config: dict) -> ScoreResult: ...
 ```
 
-### 3.2 Result types (`scoring/result.py`)
+### Result types (`scoring/result.py`)
 
 - `ScoreResult` — metric, score (0–1), threshold, `passed: bool`, `blocking: bool`,
   `error: str | None`, `detail: dict`, `source: "deterministic"|"judge"`.
@@ -105,7 +103,7 @@ class Scorer(ABC):
   counts), resolved `exit_code: int`.
 - `JudgeVerdict` — `score: float` (clamped 0–1), `rationale: str`.
 
-### 3.3 Registry (`scoring/registry.py`)
+### Registry (`scoring/registry.py`)
 
 - `@register_scorer(cls)` decorator → inserts into `SCORERS[name]`.
 - Duplicate-name registration raises `ConfigError`.
@@ -113,13 +111,13 @@ class Scorer(ABC):
   §"Custom Scorer Registration"); no-op when no plugins installed.
 - `ALIASES` maps spec catalog names to launch-pack names where they exist.
 
-### 3.4 Deterministic scorers (`scoring/deterministic/`)
+### Deterministic scorers (`scoring/deterministic/`)
 
-Implement the 8 deterministic metrics from §2.1. They read only from
+Implement the 8 deterministic metrics. They read only from
 `artifact.trajectory`, `artifact.output`, `artifact.cost`, `scenario.budget`,
 `scenario.allowed_tools`, `scenario.disallowed_tools`, `scenario.expected`.
 
-### 3.5 Judge client abstraction (`scoring/judge/`)
+### Judge client abstraction (`scoring/judge/`)
 
 ```python
 class JudgeClient(ABC):
@@ -136,13 +134,13 @@ class JudgeClient(ABC):
 - Verdicts require `{"score": float, "rationale": str}`; score clamped to [0,1];
   malformed verdicts raise `JudgeError`.
 
-### 3.6 Judge scorers (`scoring/judge/scorers.py`)
+### Judge scorers (`scoring/judge/scorers.py`)
 
 Each judge scorer builds a prompt from `scenario.goal`/`input`/`expected` and
 `artifact.output`/`artifact.trajectory`, calls the configured `JudgeClient`, and
 maps the verdict into a `ScoreResult`. Uses `temperature=0.0` for determinism.
 
-### 3.7 Hybrid scoring (`scoring/hybrid.py`)
+### Hybrid scoring (`scoring/hybrid.py`)
 
 `HybridScorer` wraps a deterministic gate scorer and a judge scorer:
 
@@ -151,7 +149,7 @@ maps the verdict into a `ScoreResult`. Uses `temperature=0.0` for determinism.
 3. Clean fail → return deterministic result (judge skipped).
 4. Inconclusive (gate cannot determine) → run judge scorer, return its result.
 
-### 3.8 ScoringEngine (`scoring/engine.py`)
+### ScoringEngine (`scoring/engine.py`)
 
 ```python
 class ScoringEngine:
@@ -170,7 +168,7 @@ class ScoringEngine:
 - Per run: aggregate into `RunScore` + resolve exit code.
 - Optionally writes `.evalforge/runs/<run_id>/scores.json`.
 
-## 4. Evaluation Hierarchy
+## Evaluation Hierarchy
 
 Safety > correctness > efficiency.
 
@@ -186,9 +184,9 @@ Safety > correctness > efficiency.
   `cost_budget_adherence`, `retry_discipline`. Fails do not fail the run unless
   promoted with `blocking: true`.
 
-## 5. Exit Codes
+## Exit Codes
 
-Per spec §"CI Integration":
+Per spec:
 
 | Code | Meaning |
 |------|---------|
@@ -201,7 +199,7 @@ Per spec §"CI Integration":
 Resolution order: safety failure (4) > config error (2) > judge infra (3) >
 scenario failure (1) > pass (0).
 
-## 6. Error Handling
+## Error Handling
 
 - Unknown metric name → `ConfigError` at engine start (exit 2), before any scoring.
 - A scorer that raises unexpectedly → catch, emit `ScoreResult(error=...)`,
@@ -213,22 +211,7 @@ scenario failure (1) > pass (0).
 - Judge verdict parsing: require `{"score": float, "rationale": str}`; clamp
   score to [0,1]; malformed → judge error.
 
-## 7. Testing Strategy (TDD)
-
-- Unit tests per deterministic scorer (mock artifacts/scenarios) — WBS #49.
-- MockJudge-driven tests per judge scorer: canned verdicts; assert prompt
-  construction + verdict parsing — WBS #50.
-- Hybrid tests: gate passes → judge skipped; gate fails → judge skipped; gate
-  inconclusive → judge decides — WBS #51.
-- Engine tests: hierarchy ordering, blocking promotion, exit-code resolution
-  (0/1/2/3/4), unknown-metric config error.
-- Client tests: OpenAI/Anthropic/Ollama with mocked HTTP; verdict parsing,
-  score clamping, error paths.
-- Registry tests: decorator registration, duplicate-name rejection, entry-point
-  discovery, alias mapping.
-- Coverage gate stays > 90%.
-
-## 8. Scope Boundaries
+## Scope Boundaries
 
 - No CLI changes (M7). No report generation (M3). No baseline storage (M3).
   No caching or parallel execution (M8).
@@ -236,16 +219,3 @@ scenario failure (1) > pass (0).
   `.evalforge/runs/<run_id>/scores.json` for M3.
 - Spec catalog scorers with no launch-pack counterpart are deferred unless
   trivial.
-
-## 9. WBS Issue Mapping
-
-| Issue | Component |
-|-------|-----------|
-| #34 | `scoring/base.py` + `scoring/result.py` |
-| #35–#41 | deterministic scorers (§3.4) |
-| #42 | judge clients (§3.5) |
-| #43–#45 | judge scorers (§3.6) |
-| #46 | `scoring/hybrid.py` (§3.7) |
-| #47 | `scoring/engine.py` (§3.8) |
-| #48 | `scoring/registry.py` (§3.3) |
-| #49–#51 | tests (§7) |

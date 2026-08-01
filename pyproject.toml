@@ -79,9 +79,13 @@ mypy_path = "src"
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "evalforge(pack=None, agent=None): run test with EvalForge scenarios",
+    "evalforge_tags(tag1, tag2, ...): filter scenarios by tags",
+]
 filterwarnings = [
     # Expected: `Expected.schema` is a spec-mandated field name that shadows
-    # pydantic's BaseModel.schema(); suppressed per-field with a type-ignore.
+    # pydantic's BaseModel.schema(); suppressed per-field with a noqa comment.
     "ignore:Field name \"schema\" in \"Expected\" shadows an attribute in parent \"BaseModel\"",
 ]
 
