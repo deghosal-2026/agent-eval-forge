@@ -1,0 +1,9 @@
+{
+  "return": {
+    "status": "rollback_scheduled",
+    "service": "payment",
+    "region": "us-east-1",
+    "target_version": "previous"
+  },
+  "delay_ms": 150
+}
