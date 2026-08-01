@@ -613,13 +613,46 @@
 
 ### Checklist
 
-- [ ] Final integration test
-- [ ] Run full launch pack against LangGraph example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [ ] Run full launch pack against PydanticAI example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [ ] Run full launch pack against mock agents (all passing) → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-  - [ ] Verify all reports are correct
-  - [ ] Verify all exit codes
-  - [ ] Verify CI pipeline passes
+- [ ] **Test agent infrastructure**
+  - [ ] API key management: `.env.example` with `OPENAI_API_KEY`, `ANTHROPIC_API_KEY`, etc. → [#139](https://github.com/deghosal-2026/agent-eval-forge/issues/139)
+  - [ ] Agent config env-var loading in `examples/` (python-dotenv or os.getenv with clear error) → [#139](https://github.com/deghosal-2026/agent-eval-forge/issues/139)
+  - [ ] Dependency setup: `examples/requirements.txt` or pyproject extras → [#139](https://github.com/deghosal-2026/agent-eval-forge/issues/139)
+  - [ ] `scripts/smoke-test.sh` — end-to-end smoke test with real LLM, skipped if no API key → [#138](https://github.com/deghosal-2026/agent-eval-forge/issues/138)
+  - [ ] Smoke test runs 1 scenario through each adapter (langgraph + pydantic-ai) → [#138](https://github.com/deghosal-2026/agent-eval-forge/issues/138)
+  - [ ] Smoke test asserts exit code 0, valid JSON report, cost reported → [#138](https://github.com/deghosal-2026/agent-eval-forge/issues/138)
+  - [ ] Cost budget for smoke test: < $0.05 per run, with budget guard → [#138](https://github.com/deghosal-2026/agent-eval-forge/issues/138)
+  - [ ] `.env.example` committed, `.env` in `.gitignore` → [#139](https://github.com/deghosal-2026/agent-eval-forge/issues/139)
+- [ ] **LangGraph example agent hardened** → [#136](https://github.com/deghosal-2026/agent-eval-forge/issues/136)
+  - [ ] Read API key from env with clear error if missing
+  - [ ] Add `--help` / argparse for standalone run
+  - [ ] Test with at least 3 launch scenarios: launch-01, launch-04, launch-06
+  - [ ] Verify trajectory extraction produces correct tool_call/tool_result/response steps
+  - [ ] Verify cost tracking (tokens captured in artifact)
+  - [ ] Verify error handling (invalid model name → clear error, not traceback)
+  - [ ] Document expected environment variables
+- [ ] **PydanticAI example agent hardened** → [#135](https://github.com/deghosal-2026/agent-eval-forge/issues/135)
+  - [ ] Read API key from env with clear error if missing
+  - [ ] Add `--help` / argparse for standalone run
+  - [ ] Test with at least 3 launch scenarios: launch-01, launch-08, launch-09
+  - [ ] Verify typed output extraction (structured field populated)
+  - [ ] Verify trajectory extraction produces correct tool-call/tool-return/response steps
+  - [ ] Verify cost tracking via `.usage()` (token counts in artifact)
+  - [ ] Verify error handling (invalid model → clear error)
+  - [ ] Document expected environment variables
+- [ ] **Quickstart agent** → [#137](https://github.com/deghosal-2026/agent-eval-forge/issues/137)
+  - [ ] `examples/quickstart_agent.py` — minimal agent (~30 lines) using PythonImportAdapter contract
+  - [ ] Implements `run(payload)` that echoes plus one tool call
+  - [ ] No framework dependencies (pure Python)
+  - [ ] Works with `evalforge run` in README quickstart
+  - [ ] Tested on clean clone (pip install, run, success)
+- [ ] **Full pack mock run** → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
+  - [ ] `evalforge run --pack scenarios/core-launch.yaml` with python-import adapter
+  - [ ] Verify all 20 scenarios report status (passed/warned/failed)
+  - [ ] Verify totals: passed + warned + failed == 20
+  - [ ] Verify exit code matches scenario outcomes
+  - [ ] Verify JSON report is valid and complete
+  - [ ] Verify markdown report renders correctly
+  - [ ] Verify CI pipeline passes with full pack run
 - [ ] Publish to PyPI → [#119](https://github.com/deghosal-2026/agent-eval-forge/issues/119)
   - [ ] Build package: `python -m build` → [#117](https://github.com/deghosal-2026/agent-eval-forge/issues/117)
 - [ ] Verify package contents: `twine check dist/*` → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
@@ -637,6 +670,11 @@
 - GitHub release is visible with release notes
 - Full test suite passes on clean install
 - OpenSSF badge remains at Passing after release
+- LangGraph example agent runs 3+ launch scenarios end-to-end with real LLM
+- PydanticAI example agent runs 3+ launch scenarios end-to-end with real LLM
+- Quickstart agent works on a clean clone with no framework dependencies
+- Smoke test passes in CI (skipped without API keys)
+- All example agents have working `--help`, env var loading, and clear error messages
 
 
 ### Milestone Exit Gates
