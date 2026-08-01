@@ -338,11 +338,11 @@
 - Budget scenarios enforce step/token/cost limits
 - Recovery scenarios detect retry loops and partial failures
 - Coding scenarios produce meaningful review and classification results
-- Full pack run produces a correct JSON + markdown report
+- Full pack run passes the engine-level e2e test (all 20 scenarios via ScoringEngine)
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
+- [x] Code review completed
 - [x] All comments added to code
 - [x] Full test suite passes (`pytest`)
 - [x] Lint clean (`ruff check` zero errors)
