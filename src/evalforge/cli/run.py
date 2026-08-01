@@ -147,6 +147,12 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Run with fixtures (deterministic mode, no live tool calls)",
 )
 @click.option(
+    "--fixtures-dir",
+    default="scenarios/fixtures",
+    show_default=True,
+    help="Directory containing fixture JSON files",
+)
+@click.option(
     "--no-cache",
     is_flag=True,
     help="Disable judge result caching",
@@ -163,6 +169,7 @@ def run(
     timeout: int,
     ci: bool,
     fixtures: bool | None,
+    fixtures_dir: str,
     no_cache: bool,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
@@ -186,6 +193,7 @@ def run(
     agent_config["timeout_seconds"] = timeout
     if fixtures is not None:
         agent_config["fixtures"] = fixtures
+    agent_config["fixtures_dir"] = fixtures_dir
 
     # Parse the optional tag filter
     tag_list = tags.split(",") if tags else None

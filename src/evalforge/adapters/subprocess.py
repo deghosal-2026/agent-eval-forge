@@ -12,11 +12,12 @@ command strings cannot be chained with shell metacharacters.
 from __future__ import annotations
 
 import json
+import os
 import shlex
 import subprocess
 from typing import Any
 
-from evalforge.adapters.base import Adapter
+from evalforge.adapters.base import Adapter, _inject_fixtures
 from evalforge.models.errors import AdapterError, AgentTimeoutError
 
 
@@ -31,6 +32,15 @@ class SubprocessAdapter(Adapter):
             raise AdapterError("subprocess adapter requires `command` in config")
         timeout = float(config.get("timeout_seconds", 120))
         args = shlex.split(command)
+
+        _inject_fixtures(payload, config)
+
+        env = None
+        if config.get("fixtures"):
+            env = {**os.environ,
+                   "EVALFORGE_FIXTURES": "1",
+                   "EVALFORGE_FIXTURES_DIR": config.get("fixtures_dir", "scenarios/fixtures")}
+
         try:
             # The command comes from operator-supplied agent config (trusted),
             # not from agent/scenario data; run without a shell as a list.
@@ -41,6 +51,7 @@ class SubprocessAdapter(Adapter):
                 text=True,
                 timeout=timeout,
                 shell=False,
+                env=env,
             )
         except subprocess.TimeoutExpired as exc:
             raise AgentTimeoutError(f"agent exceeded {timeout}s timeout") from exc

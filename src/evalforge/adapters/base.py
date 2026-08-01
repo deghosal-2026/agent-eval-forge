@@ -224,3 +224,10 @@ def _sanitize_agent(config: dict[str, Any]) -> dict[str, Any]:
     """
     secret_keys = {"api_key", "token", "secret", "password"}
     return {key: value for key, value in config.items() if key not in secret_keys}
+
+
+def _inject_fixtures(payload: dict[str, Any], config: dict[str, Any]) -> None:
+    """Stamp fixture metadata on the invocation payload."""
+    if config.get("fixtures"):
+        payload["_fixture_mode"] = True
+        payload["_fixtures_dir"] = config.get("fixtures_dir", "scenarios/fixtures")
