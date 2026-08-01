@@ -28,7 +28,7 @@ jobs:
           python-version: ${{ matrix.python-version }}
 
       - name: Install dependencies
-        run: uv sync --extra dev --extra judge
+        run: uv sync --extra dev --extra judge --extra langgraph --extra pydanticai
 
       - name: Lint
         run: uv run ruff check .
