@@ -134,7 +134,7 @@ When EvalForge flags a safety boundary violation, the reason should be immediate
 
 ### v0.1 Posture
 
-Credible for the launch pack, not feature-complete across all CUJs. The product earns trust through a small number of proven scenarios with strong default rubrics.
+Credible for the launch pack and hardened for untrusted-agent evaluation. The product earns trust through proven security foundations (sandbox, trust policies, audit trail), a caching layer for fast iteration, deterministic fixture support, parallel execution, pre-flight validation, and strong CI integration — all while maintaining a small, proven set of scenarios with strong default rubrics.
 
 ### What It Is Not
 
@@ -190,6 +190,8 @@ The harness should not require a team to rewrite their agent. It should require 
 
 ## Scope
 
+> **Post-M8 Hardening Note:** The v0.1 scope has been expanded to include security, caching, fixture, parallel execution, validation, and CI integration capabilities identified during the M8 design and code review. These are not scope creep — they are foundational for the product's primary promise of stopping unsafe agent changes from shipping.
+
 ### v0.1 - Evaluation Harness
 
 | Capability | What it does |
@@ -203,6 +205,12 @@ The harness should not require a team to rewrite their agent. It should require 
 | **Evaluation reports** | Produces machine-readable JSON and human-readable markdown summaries |
 | **Scenario tagging** | Groups scenarios by domain like tool-use, retrieval, coding, safety, budget, recovery, and multi-turn state |
 | **Two OSS framework demos** | Ships tested examples for two popular OSS frameworks |
+| **Caching** | Judge result cache (deduplicates LLM judge calls), run cache (avoids re-running unchanged scenarios), schema cache (validates pack schemas by hash) |
+| **Fixture System** | ToolStub for deterministic evaluation without live dependencies; `--live` mode for real execution; recording/replay utility to generate fixture sets |
+| **Parallel Execution** | `--workers` flag for concurrent scenario running; configurable concurrency limits and backpressure knobs (`--max-outstanding`) |
+| **Security Model** | Sandbox mode (env stripping, filesystem/network isolation via optional Docker); trust policies (trust→adapter/tool matrix enforced at validate/run); audit trail (per-run audit log of policy decisions); API key sanitization in artifacts |
+| **Validation** | `--pre-flight` mode for fast configuration checking; HTTP connectivity checks; trust-policy evaluator; pack schema validation |
+| **CI Integration** | GitHub Actions step summary (`$GITHUB_STEP_SUMMARY`), GitLab CI templates, Docker sandbox CI jobs (Linux), optional SBOM generation and Dependabot configuration |
 
 ### Recommended OSS Framework Targets For v0.1
 
@@ -519,3 +527,22 @@ For the first practical pack set, prioritize these families:
 - `pydantic/pydantic-ai` - Python-native agent framework with explicit eval investment
 - `langchain-ai/langgraph` - important OSS target framework for stateful agent workflows
 - `crewAIInc/crewAI` - important OSS framework to study, but not required as a proven v0.1 target
+
+## Post-v0.1 Hardening Roadmap
+
+The following hardening items were identified during the M8 design and code review and are explicitly deferred past the v0.1 launch. Each is tracked by its action-item identifier from the review findings (`docs/design-code-review-issues-found.md`).
+
+| ID | Item | Scope |
+|---|---|---|
+| **A1** | **Enforce Trust Policies** | Define trust→adapter/tool policy matrix; validate at `validate`/`run`; persist trust in run index and baselines; `--explain-policy` helper |
+| **A2** | **Optional Docker Agent Execution (Linux)** | Container runner (stdin JSON, stdout envelope); Docker backend for subprocess/python_import; Linux CI job validating network-off, restricted mounts |
+| **A3** | **Judge Savings: Provider/Model-Aware** | Capture usage/tokens from judge SDKs; per-model cost defaults; provenance flag in `cache_stats` (estimated vs measured) |
+| **A4** | **Loud Errors for Missing Gate/Scorer** | Warn-level `ScoreResult` on missing gate/scorer; strict-mode converts to failure; validate catches unknown gates earlier |
+| **A5** | **Stdlib Logging Across Library Surfaces** | Module-level loggers with structured message templates; CLI formatter preserved; CI logging configuration documented |
+| **A6** | **Baseline Compare Modes** | `--compare-mode {rescore,snapshot}`; persist metric-results snapshots; update docs and tests |
+| **A7** | **JSON Schema Versioning** | Top-level `schema_version` on outputs; publish `schemas/*.json`; validate in CI |
+| **A8** | **Parallel Backpressure Knobs** | `--max-outstanding` parameter; CI tuning documentation |
+| **A9** | **Supply Chain: SBOM + Dependabot** | CycloneDX SBOM generation in CI; `.github/dependabot.yml` for pip and GitHub Actions; optional `pip-audit` job |
+| **A10** | **Judge Clients: Contract Tests** | Provider-agnostic mock contract tests; optional live-key smoke jobs outside default matrix |
+
+These items are sequenced across two sprints in the review document. The v0.1 launch baseline already includes the foundations (sandbox, caching, fixtures, parallel execution, validation, CI integration) on which these hardening items build.
