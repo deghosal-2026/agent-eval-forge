@@ -26,8 +26,6 @@ class SandboxConfig:
     enabled: bool = False
     allowlist: set[str] = field(default_factory=lambda: SANDBOX_ALLOWLIST)
     timeout_multiplier: float = 2.0
-    max_memory_mb: int = 512
-    max_cpu_percent: int = 80
 
 
 def sandboxed_run(
