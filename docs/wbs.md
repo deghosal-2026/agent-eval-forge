@@ -264,22 +264,22 @@
 
 ### Checklist
 
-- [ ] Create mock agents for each scenario to verify scoring → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
-- [ ] Mock agent that fails each scenario in expected ways → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
-- [ ] Write tests for each scenario → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-  - [ ] Test that passing agent scores correctly
-  - [ ] Test that failing agent is caught
-- [ ] Test that each expected failure mode is detectable → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
-- [ ] Write fixture data for deterministic runs → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
-  - [ ] `fixtures/policy_lookup.json`
-  - [ ] `fixtures/health_check.json`
-  - [ ] `fixtures/customer_lookup.json`
-  - [ ] `fixtures/ticket_search.json`
-  - [ ] `fixtures/monitoring_query.json`
-  - [ ] `fixtures/deployment_history.json`
-  - [ ] `fixtures/deploy_rollback.json`
-  - [ ] `fixtures/log_query.json`
+- [x] Create mock agents for each scenario to verify scoring → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Mock agent that passes each scenario → [#73](https://github.com/deghosal-2026/agent-eval-forge/issues/73)
+- [x] Mock agent that fails each scenario in expected ways → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
+- [x] Write tests for each scenario → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+  - [x] Test that passing agent scores correctly
+  - [x] Test that failing agent is caught
+- [x] Test that each expected failure mode is detectable → [#74](https://github.com/deghosal-2026/agent-eval-forge/issues/74)
+- [x] Write fixture data for deterministic runs → [#75](https://github.com/deghosal-2026/agent-eval-forge/issues/75)
+  - [x] `fixtures/policy_lookup.json`
+  - [x] `fixtures/health_check.json`
+  - [x] `fixtures/customer_lookup.json`
+  - [x] `fixtures/ticket_search.json`
+  - [x] `fixtures/monitoring_query.json`
+  - [x] `fixtures/deployment_history.json`
+  - [x] `fixtures/deploy_rollback.json`
+  - [x] `fixtures/log_query.json`
 
 ### Success Criteria
 
@@ -293,11 +293,11 @@
 
 ### Milestone Exit Gates
 - [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 

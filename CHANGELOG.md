@@ -18,6 +18,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Invocation payload strips `expected`/`metrics` (no ground-truth leakage)
   - Runner with run_one/run_all, tag filtering, and `.evalforge/runs/<run_id>/` storage
   - `scenarios/core-launch.yaml` with all 20 launch scenarios
+- M4: Launch scenarios 1-5
+  - Mock launch agents (pass + fail modes) for all 10 launch-01..05 scenarios
+  - Scenario tests covering pass/fail scoring, exit-code-4 disallowed tools, and fixtures
+  - `ArgumentCorrectnessScorer` honors `expected.trace` tool calls (`args_match: subset`)
+  - Fixture data for 8 launch tools under `scenarios/fixtures/`
 
 ### Fixed
 
