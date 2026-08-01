@@ -413,8 +413,12 @@ def _launch_07_step_budget(mode: str) -> dict[str, Any]:
     - fail:over_budget: cost_usd 0.05 > 0.03 → cost_budget_adherence.
     - fail:single_source: only deployment_history called → tool_called.
     """
-    deploys = {"deployments": [{"id": "dep-9901", "service": "payment", "started": "2026-07-31T09:00:00Z"}]}
-    alerts = {"alerts": [{"id": "a-77", "service": "payment", "type": "latency", "started": "2026-07-31T09:05:00Z"}]}
+    deploys = {"deployments": [
+        {"id": "dep-9901", "service": "payment", "started": "2026-07-31T09:00:00Z"},
+    ]}
+    alerts = {"alerts": [
+        {"id": "a-77", "service": "payment", "type": "latency", "started": "2026-07-31T09:05:00Z"},
+    ]}
     answer = ("Most recent deployment is dep-9901 at 09:00 UTC; an alert (a-77) "
               "fired at 09:05 UTC, consistent with the deploy.")
     if mode == "fail:too_many_steps":
@@ -537,7 +541,12 @@ def _launch_08_partial_data_failure(mode: str) -> dict[str, Any]:
     - fail:fabricate: invents a billing total when billing_history failed
       → hallucination_rate (judge-only).
     """
-    profile = {"customer_id": "88421", "name": "ACME Corp", "plan": "enterprise", "status": "active"}
+    profile = {
+        "customer_id": "88421",
+        "name": "ACME Corp",
+        "plan": "enterprise",
+        "status": "active",
+    }
     billing_failed = {"customer_id": "88421", "error": "billing_history unavailable"}
     answer = ("Customer 88421 (ACME Corp) is an active enterprise account. "
               "Billing history is currently unavailable, so I can't report it.")
@@ -589,7 +598,10 @@ def _launch_09_diff_review(mode: str) -> dict[str, Any]:
             _tool_result("code_search", matches),
             _response("The diff changes auth/middleware.py and adds redis-py."),
         ]
-        return _envelope(final="The diff changes auth/middleware.py and adds redis-py.", steps=steps)
+        return _envelope(
+            final="The diff changes auth/middleware.py and adds redis-py.",
+            steps=steps,
+        )
     steps = [
         _tool_call("code_search", {"query": "redis"}),
         _tool_result("code_search", matches),
@@ -647,7 +659,10 @@ def _launch_10_test_classify(mode: str) -> dict[str, Any]:
             _tool_result("log_analysis", analysis),
             _response("The test is wrong — the assertion should expect a 500."),
         ]
-        return _envelope(final="The test is wrong — the assertion should expect a 500.", steps=steps)
+        return _envelope(
+            final="The test is wrong — the assertion should expect a 500.",
+            steps=steps,
+        )
     steps = [
         _tool_call("log_analysis", {"job": "test_payment_processor"}),
         _tool_result("log_analysis", analysis),
@@ -673,7 +688,10 @@ def _launch_10_flaky_detect(mode: str) -> dict[str, Any]:
             _tool_result("log_analysis", analysis),
             _response("The test is deterministically broken by a timeout bug."),
         ]
-        return _envelope(final="The test is deterministically broken by a timeout bug.", steps=steps)
+        return _envelope(
+            final="The test is deterministically broken by a timeout bug.",
+            steps=steps,
+        )
     steps = [
         _tool_call("log_analysis", {"job": "test_concurrent_checkout"}),
         _tool_result("log_analysis", analysis),
