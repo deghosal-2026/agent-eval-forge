@@ -515,6 +515,7 @@ scenarios:
     disallowed_tools: []
     expected:
       type: rubric
+      required_tools: [customer_lookup, ticket_search]
       criteria:
         - "Must include support tier from customer_lookup"
         - "Must include at least the subject of last 3 tickets from ticket_search"
@@ -524,6 +525,7 @@ scenarios:
       task_completion: {threshold: 0.8}
       synthesis_quality: {threshold: 0.7}
       tool_correctness: {threshold: 1.0}
+      tool_called: {threshold: 1.0}
     tags: [retrieval, multi-tool, synthesis]
     difficulty: medium
     budget: {max_steps: 5, max_tokens: 800}
@@ -538,6 +540,7 @@ scenarios:
     disallowed_tools: []
     expected:
       type: rubric
+      required_tools: [monitoring_query, deployment_history]
       criteria:
         - "Must query both monitoring and deployment tools"
         - "Must correlate deployment timing with error spike"
@@ -546,6 +549,7 @@ scenarios:
       task_completion: {threshold: 0.8}
       synthesis_quality: {threshold: 0.7}
       tool_correctness: {threshold: 1.0}
+      tool_called: {threshold: 1.0}
     tags: [retrieval, multi-tool, synthesis, ops]
     difficulty: medium
     budget: {max_steps: 6, max_tokens: 1000}

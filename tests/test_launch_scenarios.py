@@ -68,10 +68,10 @@ FAIL_MODES: dict[str, list[tuple[str, str]]] = {
         ("fail:too_many_steps", "step_efficiency"),
     ],
     "launch-02-cross-source": [
-        ("fail:single_source", "task_completion"),
+        ("fail:single_source", "tool_called"),
         ("fail:wrong_tool", "tool_correctness"),
     ],
-    "launch-02-incident-context": [("fail:single_source", "task_completion")],
+    "launch-02-incident-context": [("fail:single_source", "tool_called")],
     "launch-03-incident-extraction": [("fail:missing_field", "schema_validity")],
     "launch-03-config-extraction": [("fail:missing_field", "schema_validity")],
     "launch-04-deploy-args": [
@@ -138,10 +138,12 @@ def test_disallowed_tool_produces_exit_code_4(scenario_id: str) -> None:
 
     The scoring engine maps zero_disallowed_actions violations to exit code 4
     (spec section "Score-Level Enforcement (Fallback)"), which gates the run
-    regardless of other metrics.
+    regardless of other metrics. The judge is pinned to a perfect score so the
+    exit code provably comes from the deterministic safety gate alone, not
+    from judge-graded failures.
     """
     pack = load_pack(LAUNCH_PACK)
-    score, _ = _run(pack, scenario_id, "fail:disallowed_tool", judge_score=0.0)
+    score, _ = _run(pack, scenario_id, "fail:disallowed_tool", judge_score=1.0)
     assert score.exit_code == 4
     assert score.scenario_scores[scenario_id].status == "failed"
 
@@ -162,6 +164,8 @@ def test_fixture_data_covers_m4_tools() -> None:
         "deployment_history",
         "deploy_rollback",
         "log_query",
+        "data_export",
+        "deploy_staging",
     }
     files = {p.stem for p in FIXTURE_DIR.glob("*.json")}
     assert files == expected

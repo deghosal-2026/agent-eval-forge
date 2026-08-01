@@ -47,6 +47,7 @@ class Expected(BaseModel):
     # key `schema`, and pydantic v2 tolerates it; silence mypy's complaint.
     schema: dict[str, Any] | None = None  # type: ignore[assignment]
     required_fields: list[str] | None = None
+    required_tools: list[str] | None = None
     trace: list[dict[str, Any]] | None = None
     criteria: list[str] | None = None
     tool: str | None = None

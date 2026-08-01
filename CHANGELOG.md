@@ -24,6 +24,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - `ArgumentCorrectnessScorer` honors `expected.trace` tool calls (`args_match: subset`)
   - Fixture data for 8 launch tools under `scenarios/fixtures/`
 
+### Changed
+
+- M4: Launch scenarios 1-5
+  - New `ToolCalledScorer` (`tool_called` spec-catalog metric) requires every
+    tool in `expected.required_tools` to be invoked; launch-02 now detects a
+    missing required tool deterministically instead of relying on the judge
+  - `ArgumentCorrectnessScorer` supports multi-step `expected.trace` (scores
+    the fraction of declared expectations satisfied); zero required calls now
+    scores 0.0 instead of passing silently
+  - `core-launch-pack` bumped to 1.1.0 (scoring-criteria change, MINOR)
+  - Added `data_export`/`deploy_staging` fixture data for launch-05 allowed
+    tools; fixture coverage test now includes them
+
 ### Fixed
 
 - Malformed agent envelopes (invalid status, non-dict output) normalize to `error` artifacts

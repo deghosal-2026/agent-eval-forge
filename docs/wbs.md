@@ -280,6 +280,8 @@
   - [x] `fixtures/deployment_history.json`
   - [x] `fixtures/deploy_rollback.json`
   - [x] `fixtures/log_query.json`
+  - [x] `fixtures/data_export.json`
+  - [x] `fixtures/deploy_staging.json`
 
 ### Success Criteria
 
@@ -292,7 +294,7 @@
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
+- [x] Code review completed
 - [x] All comments added to code
 - [x] Full test suite passes (`pytest`)
 - [x] Lint clean (`ruff check` zero errors)

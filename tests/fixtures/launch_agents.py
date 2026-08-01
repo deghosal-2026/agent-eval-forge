@@ -148,7 +148,7 @@ def _launch_02_cross_source(mode: str) -> dict[str, Any]:
     - pass: both required tools called; summary synthesized from both.
     - fail:wrong_tool: health_check instead → tool_correctness.
     - fail:single_source: only customer_lookup, no ticket_search
-      → task_completion (incomplete evidence base).
+      → tool_called (required tool not invoked).
     """
     customer = {"customer": "ACME Corp", "support_tier": "premium", "account_status": "active"}
     tickets = {
@@ -189,7 +189,7 @@ def _launch_02_incident_context(mode: str) -> dict[str, Any]:
 
     - pass: both tools called to correlate the error spike with a deploy.
     - fail:single_source: monitoring only, no deployment history
-      → task_completion.
+      → tool_called (required tool not invoked).
     """
     monitoring = {
         "service": "service-x",

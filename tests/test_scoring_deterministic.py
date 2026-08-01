@@ -1,6 +1,6 @@
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
 from evalforge.models.pack import Budget, Expected, Scenario, Tool
-from evalforge.scoring.deterministic.tools import ToolCorrectnessScorer
+from evalforge.scoring.deterministic.tools import ToolCalledScorer, ToolCorrectnessScorer
 
 
 def _artifact(trajectory_steps: list | None = None) -> RunArtifact:
@@ -33,6 +33,59 @@ def test_tool_correctness_all_tools_allowed() -> None:
     scorer = ToolCorrectnessScorer()
     art = _artifact([{"type": "tool_call", "tool": "policy_lookup", "args": {}, "duration_ms": 1}])
     sc = _scenario(allowed=["policy_lookup"])
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 1.0
+    assert result.passed is True
+
+
+def test_tool_called_all_required_tools_invoked() -> None:
+    scorer = ToolCalledScorer()
+    art = _artifact(
+        [
+            {"type": "tool_call", "tool": "customer_lookup", "args": {}, "duration_ms": 1},
+            {"type": "tool_call", "tool": "ticket_search", "args": {}, "duration_ms": 1},
+        ]
+    )
+    sc = _scenario(allowed=["customer_lookup", "ticket_search"])
+    sc.expected = Expected(type="rubric", required_tools=["customer_lookup", "ticket_search"])
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 1.0
+    assert result.passed is True
+
+
+def test_tool_called_single_source_fails() -> None:
+    scorer = ToolCalledScorer()
+    art = _artifact(
+        [{"type": "tool_call", "tool": "customer_lookup", "args": {}, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["customer_lookup", "ticket_search"])
+    sc.expected = Expected(type="rubric", required_tools=["customer_lookup", "ticket_search"])
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 0.5
+    assert result.passed is False
+    assert result.detail["missing"] == ["ticket_search"]
+
+
+def test_tool_called_from_trace_derives_required_tools() -> None:
+    scorer = ToolCalledScorer()
+    art = _artifact(
+        [{"type": "tool_call", "tool": "deploy_rollback", "args": {}, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["deploy_rollback"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[{"tool": "deploy_rollback", "args": {"service": "payment"}}],
+    )
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 1.0
+    assert result.passed is True
+
+
+def test_tool_called_no_required_tools_is_noop() -> None:
+    scorer = ToolCalledScorer()
+    art = _artifact([])
+    sc = _scenario(allowed=["health_check"])
+    sc.expected = Expected(type="rubric", criteria=["Do something"])
     result = scorer.score(art, sc, {"threshold": 1.0})
     assert result.score == 1.0
     assert result.passed is True
@@ -184,6 +237,80 @@ def test_argument_correctness_tool_trace_wrong_tool_ignored() -> None:
     )
     result = scorer.score(art, sc, {"threshold": 0.9})
     assert result.passed is False
+
+
+def test_argument_correctness_multi_step_trace_all_satisfied() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    art = _artifact(
+        [
+            {"type": "tool_call", "tool": "customer_lookup", "args": {
+                "customer": "ACME Corp"}, "duration_ms": 1},
+            {"type": "tool_call", "tool": "ticket_search", "args": {
+                "customer": "ACME Corp", "limit": 3}, "duration_ms": 1},
+        ]
+    )
+    sc = _scenario(allowed=["customer_lookup", "ticket_search"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[
+            {"tool": "customer_lookup", "args_match": "subset",
+             "args": {"customer": "ACME Corp"}},
+            {"tool": "ticket_search", "args_match": "subset",
+             "args": {"customer": "ACME Corp"}},
+        ],
+    )
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 1.0
+    assert result.passed is True
+
+
+def test_argument_correctness_multi_step_trace_partial() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    # Only the first expected step is satisfied; ticket_search never called.
+    art = _artifact(
+        [{"type": "tool_call", "tool": "customer_lookup", "args": {
+            "customer": "ACME Corp"}, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["customer_lookup", "ticket_search"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[
+            {"tool": "customer_lookup", "args_match": "subset",
+             "args": {"customer": "ACME Corp"}},
+            {"tool": "ticket_search", "args_match": "subset",
+             "args": {"customer": "ACME Corp"}},
+        ],
+    )
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 0.5
+    assert result.passed is False
+
+
+def test_argument_correctness_multi_step_trace_step_without_args() -> None:
+    from evalforge.scoring.deterministic.args import ArgumentCorrectnessScorer
+
+    scorer = ArgumentCorrectnessScorer()
+    # A trace step with no args is satisfied by any call to that tool.
+    art = _artifact(
+        [{"type": "tool_call", "tool": "deployment_history", "args": {
+            "service": "x"}, "duration_ms": 1}]
+    )
+    sc = _scenario(allowed=["deployment_history"])
+    sc.expected = Expected(
+        type="tool_trace",
+        trace=[
+            {"tool": "deployment_history", "args_match": "subset",
+             "args": {"service": "x"}},
+            {"tool": "deployment_history"},
+        ],
+    )
+    result = scorer.score(art, sc, {"threshold": 1.0})
+    assert result.score == 1.0
+    assert result.passed is True
 
 
 def test_step_efficiency_within_budget() -> None:

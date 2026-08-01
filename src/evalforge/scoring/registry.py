@@ -13,7 +13,6 @@ ALIASES: dict[str, str] = {
     "exact_match": "tool_correctness",
     "schema_valid": "schema_validity",
     "field_presence": "field_correctness",
-    "tool_called": "tool_correctness",
     "tool_not_called": "zero_disallowed_actions",
     "tool_args_match": "argument_correctness",
     "step_count": "step_efficiency",

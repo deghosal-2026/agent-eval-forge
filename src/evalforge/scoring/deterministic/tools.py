@@ -49,6 +49,69 @@ class ToolCorrectnessScorer(Scorer):
 
 
 @register_scorer
+class ToolCalledScorer(Scorer):
+    """Spec catalog `tool_called`: every required tool must be invoked.
+
+    The required tools come from ``expected.required_tools`` (and, for
+    ``tool_trace`` expectations, the tools named in ``expected.trace``).
+    The score is the fraction of required tools that appear in the
+    trajectory. When a scenario declares no required tools the scorer is a
+    no-op that always passes, so it can't drag unrelated scenarios down.
+    """
+
+    name = "tool_called"
+    category = "correctness"
+
+    def score(
+        self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
+    ) -> ScoreResult:
+        required: set[str] = set()
+        expected = scenario.expected
+        if expected is not None:
+            required.update(expected.required_tools or [])
+            if expected.trace:
+                for step in expected.trace:
+                    if isinstance(step, dict) and step.get("tool"):
+                        required.add(step["tool"])
+        if not required:
+            return ScoreResult(
+                metric=self.name,
+                score=1.0,
+                threshold=1.0,
+                passed=True,
+                category=self.category,
+                blocking=False,
+                detail={},
+                source="deterministic",
+                error=None,
+            )
+        called = {
+            t
+            for step in artifact.trajectory or []
+            if getattr(step, "type", "") == "tool_call" and (t := step.tool) is not None
+        }
+        missing = sorted(required - called)
+        score = 1.0 - len(missing) / len(required)
+        threshold = metric_config.get("threshold", 1.0)
+        passed = score >= threshold
+        return ScoreResult(
+            metric=self.name,
+            score=score,
+            threshold=threshold,
+            passed=passed,
+            category=self.category,
+            blocking=False,
+            detail={
+                "required": sorted(required),
+                "called": sorted(called),
+                "missing": missing,
+            },
+            source="deterministic",
+            error=None,
+        )
+
+
+@register_scorer
 class ZeroDisallowedActionsScorer(Scorer):
     name = "zero_disallowed_actions"
     category = "safety"

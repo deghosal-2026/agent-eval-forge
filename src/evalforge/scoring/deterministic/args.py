@@ -5,14 +5,17 @@ declares as required. Two expectation forms are supported:
 
 - ``expected.tool`` + ``expected.args`` (classic form): every call to the
   expected tool must pass exactly the expected arguments.
-- ``expected.trace[0]`` + ``args_match`` (launch-pack form): the first
-  required tool step declares its args and a match mode, ``exact`` or
-  ``subset``. ``subset`` lets the agent supply extra, harmless arguments on
-  top of the required ones (e.g. a region the scenario doesn't constrain).
+- ``expected.trace`` + ``args_match`` (launch-pack form): the ordered
+  sequence of required tool steps, each declaring its args and a match mode,
+  ``exact`` or ``subset``. ``subset`` lets the agent supply extra, harmless
+  arguments on top of the required ones (e.g. a region the scenario doesn't
+  constrain).
 
-The score is the fraction of matching calls over the total calls made to the
-expected tool. When the scenario declares no argument expectation at all, the
-scorer is a no-op that always passes so it can't drag unrelated scenarios down.
+The score is the fraction of declared expectations that at least one tool
+call satisfies (a trace entry with no ``args`` is satisfied by any call to
+its tool). When the scenario declares no argument expectation at all, the
+scorer is a no-op that always passes so it can't drag unrelated scenarios
+down.
 """
 
 from __future__ import annotations
@@ -25,29 +28,32 @@ from evalforge.scoring.base import Scorer
 from evalforge.scoring.registry import register_scorer
 from evalforge.scoring.result import ScoreResult
 
+Expectation = tuple[str, dict[str, Any] | None, str]
 
-def _extract_expectation(expected: Expected | None) -> tuple[str, dict[str, Any] | None, str]:
-    """Extract (tool, args, match_mode) from an ``Expected`` block.
+
+def _extract_expectations(expected: Expected | None) -> list[Expectation]:
+    """Extract a list of ``(tool, args, match_mode)`` expectations.
 
     Handles both the ``tool_args`` form (``expected.tool`` + ``expected.args``)
-    and the launch-pack ``tool_trace`` form (``expected.trace[0]`` with
-    ``args_match``). Returns ``match_mode`` in {"exact", "subset"}.
-
-    Returns an empty tool and ``None`` args when no argument expectation
-    exists, signalling the caller to short-circuit to a passing score.
+    and the launch-pack ``tool_trace`` form (one expectation per ``trace``
+    entry with ``args_match``). Returns ``match_mode`` in {"exact", "subset"}.
+    An empty list signals the caller to short-circuit to a passing score.
     """
     if expected is None:
-        return "", None, "exact"
+        return []
     if expected.trace and isinstance(expected.trace, list):
-        # Launch-pack form: the first expected tool step drives the check.
-        first = expected.trace[0]
-        tool = first.get("tool", "") if isinstance(first, dict) else ""
-        args = first.get("args") if isinstance(first, dict) else None
-        mode = first.get("args_match", "exact") if isinstance(first, dict) else "exact"
-        return tool, args if isinstance(args, dict) else None, mode
+        out: list[tuple[str, dict[str, Any] | None, str]] = []
+        for entry in expected.trace:
+            if not isinstance(entry, dict):
+                continue
+            tool = entry.get("tool", "")
+            args = entry.get("args")
+            mode = entry.get("args_match", "exact")
+            out.append((tool, args if isinstance(args, dict) else None, mode))
+        return out
     tool = expected.tool or ""
     args = expected.args
-    return tool, args if isinstance(args, dict) else None, "exact"
+    return [(tool, args if isinstance(args, dict) else None, "exact")]
 
 
 def _args_match(call_args: dict[str, Any], exp_args: dict[str, Any], mode: str) -> bool:
@@ -63,6 +69,31 @@ def _args_match(call_args: dict[str, Any], exp_args: dict[str, Any], mode: str) 
     return call_args == exp_args
 
 
+def _satisfied(
+    trajectory: list[Any] | None,
+    exp_tool: str,
+    exp_args: dict[str, Any] | None,
+    mode: str,
+) -> bool:
+    """Whether any tool_call satisfies a single expectation.
+
+    A call satisfies the expectation when it targets the expected tool (when
+    named) and its args match. An expectation with no ``args`` declares no
+    argument constraint, so any call to the tool satisfies it.
+    """
+    for step in trajectory or []:
+        if getattr(step, "type", "") != "tool_call":
+            continue
+        if exp_tool and step.tool != exp_tool:
+            continue
+        call_args = step.args if isinstance(step.args, dict) else {}
+        if exp_args is None:
+            return True
+        if _args_match(call_args, exp_args, mode):
+            return True
+    return False
+
+
 @register_scorer
 class ArgumentCorrectnessScorer(Scorer):
     name = "argument_correctness"
@@ -71,9 +102,8 @@ class ArgumentCorrectnessScorer(Scorer):
     def score(
         self, artifact: RunArtifact, scenario: Scenario, metric_config: dict[str, Any]
     ) -> ScoreResult:
-        expected = scenario.expected
-        exp_tool, exp_args, match_mode = _extract_expectation(expected)
-        if exp_args is None:
+        expectations = _extract_expectations(scenario.expected)
+        if not expectations:
             # No argument expectation declared: nothing to verify, so pass.
             # This keeps the metric inert for scenarios that only gate on
             # tool choice or output shape.
@@ -88,26 +118,15 @@ class ArgumentCorrectnessScorer(Scorer):
                 source="deterministic",
                 error=None,
             )
-        matches = 0
-        total = 0
-        for step in artifact.trajectory or []:
-            # Only tool_call steps can carry arguments; ignore responses,
-            # tool results, and any future step kinds.
-            if getattr(step, "type", "") != "tool_call":
-                continue
-            # When the expectation names a tool, calls to other tools don't
-            # count against the argument score (tool choice is scored by
-            # tool_correctness instead).
-            if exp_tool and step.tool != exp_tool:
-                continue
-            total += 1
-            call_args = step.args if isinstance(step.args, dict) else {}
-            if _args_match(call_args, exp_args, match_mode):
-                matches += 1
-        # Fraction of expected-tool calls whose args satisfy the expectation.
-        # Zero calls to the expected tool yields 0.0, correctly failing the
-        # scenario when the agent never made the required call.
-        score = matches / total if total else 0.0
+        matched = sum(
+            1
+            for exp_tool, exp_args, mode in expectations
+            if _satisfied(artifact.trajectory, exp_tool, exp_args, mode)
+        )
+        # Fraction of declared expectations the trajectory satisfies. Any
+        # unmet expectation (wrong args, wrong tool, or a required call never
+        # made) correctly fails the scenario.
+        score = matched / len(expectations)
         threshold = metric_config.get("threshold", 1.0)
         return ScoreResult(
             metric=self.name,
@@ -116,7 +135,7 @@ class ArgumentCorrectnessScorer(Scorer):
             passed=score >= threshold,
             category=self.category,
             blocking=False,
-            detail={"expected_args": exp_args, "expected_tool": exp_tool},
+            detail={"expected_expectations": len(expectations), "matched": matched},
             source="deterministic",
             error=None,
         )
