@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Scenario tests + FAIL_MODES coverage for scenarios 6-10
   - Engine-level end-to-end full-pack test (all 20 launch scenarios pass, exit 0)
   - Fixture data for 13 additional tools under `scenarios/fixtures/`
+- M6: Framework adapters
+  - LangGraph adapter (`langgraph` type) — auto-extracts trajectory from `create_react_agent` message history
+  - PydanticAI adapter (`pydantic-ai` type) — auto-extracts trajectory and structured output from `Agent.run_sync()`
+  - Example agents for both frameworks (`examples/`)
+  - Integration tests — parametrized over launch scenarios 1-5 (skipped without optional deps)
+  - Adapter documentation (`docs/adapters/`)
 
 ### Changed
 

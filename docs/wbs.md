@@ -357,31 +357,32 @@
 
 ### Checklist
 
-- [ ] Implement LangGraph Adapter (`src/evalforge/adapters/langgraph.py`) → [#81](https://github.com/deghosal-2026/agent-eval-forge/issues/81)
-  - [ ] Invoke LangGraph graph with scenario input
-  - [ ] Extract state graph trajectory nodes
-  - [ ] Normalize tool calls into EvalForge tool_call format
-  - [ ] Capture final output from graph
-  - [ ] Handle interrupts / human-in-the-loop states
-- [ ] Handle graph errors and timeouts → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
-- [ ] Implement PydanticAI Adapter (`src/evalforge/adapters/pydantic_ai.py`) → [#82](https://github.com/deghosal-2026/agent-eval-forge/issues/82)
-  - [ ] Invoke PydanticAI agent with scenario input
-  - [ ] Extract typed output from agent result
-  - [ ] Capture tool usage from agent run context
-  - [ ] Map structured output to EvalForge schema expectations
-  - [ ] Handle agent errors and validation failures
-- [ ] Write example agents for each framework → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
-- [ ] `examples/langgraph_agent.py` — simple tool-using agent → [#114](https://github.com/deghosal-2026/agent-eval-forge/issues/114)
-- [ ] `examples/pydantic_ai_agent.py` — simple tool-using agent → [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80)
-- [ ] Write integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [ ] LangGraph adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [ ] PydanticAI adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [ ] Verify trajectory capture matches agent's actual execution path → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
-- [ ] Write adapter documentation
-  - [ ] `docs/adapters/langgraph.md`
-  - [ ] `docs/adapters/pydantic-ai.md`
-  - [ ] Adapter contract specification
-  - [ ] How to write a custom adapter
+- [x] Design doc written and approved (`docs/2026-07-31-m6-framework-adapters-design.md`) → closes design phase
+- [x] Implement LangGraph Adapter (`src/evalforge/adapters/langgraph.py`) → [#81](https://github.com/deghosal-2026/agent-eval-forge/issues/81)
+  - [x] Invoke LangGraph graph with scenario input
+  - [x] Extract state graph trajectory nodes
+  - [x] Normalize tool calls into EvalForge tool_call format
+  - [x] Capture final output from graph
+  - [x] Handle interrupts / human-in-the-loop states
+- [x] Handle graph errors and timeouts → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
+- [x] Implement PydanticAI Adapter (`src/evalforge/adapters/pydantic_ai.py`) → [#82](https://github.com/deghosal-2026/agent-eval-forge/issues/82)
+  - [x] Invoke PydanticAI agent with scenario input
+  - [x] Extract typed output from agent result
+  - [x] Capture tool usage from agent run context
+  - [x] Map structured output to EvalForge schema expectations
+  - [x] Handle agent errors and validation failures
+- [x] Write example agents for each framework → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
+- [x] `examples/langgraph_agent.py` — simple tool-using agent → [#114](https://github.com/deghosal-2026/agent-eval-forge/issues/114)
+- [x] `examples/pydantic_ai_agent.py` — simple tool-using agent → [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80)
+- [x] Write integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
+- [x] LangGraph adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
+- [x] PydanticAI adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
+- [x] Verify trajectory capture matches agent's actual execution path → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
+- [x] Write adapter documentation
+  - [x] `docs/adapters/langgraph.md`
+  - [x] `docs/adapters/pydantic-ai.md`
+  - [x] Adapter contract specification
+  - [x] How to write a custom adapter
 
 ### Success Criteria
 
@@ -394,12 +395,12 @@
 
 
 ### Milestone Exit Gates
-- [ ] Code review completed
-- [ ] All comments added to code
-- [ ] Full test suite passes (`pytest`)
-- [ ] Lint clean (`ruff check` zero errors)
-- [ ] Type check clean (`mypy --strict` zero errors)
-- [ ] Code coverage > 90% (`pytest --cov`)
+- [x] Code review completed
+- [x] All comments added to code
+- [x] Full test suite passes (`pytest`)
+- [x] Lint clean (`ruff check` zero errors)
+- [x] Type check clean (`mypy --strict` zero errors)
+- [x] Code coverage > 90% (`pytest --cov`)
 
 ---
 
