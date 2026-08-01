@@ -353,34 +353,34 @@
 
 ## M6: Framework Adapters
 
-**Goal:** Ship tested, documented adapters for LangGraph and PydanticAI.
+**Goal:** Ship tested, documented adapters for LangGraph and PydanticAI. **Complete** — closes [#77](https://github.com/deghosal-2026/agent-eval-forge/issues/77), [#78](https://github.com/deghosal-2026/agent-eval-forge/issues/78), [#79](https://github.com/deghosal-2026/agent-eval-forge/issues/79), [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80), [#83](https://github.com/deghosal-2026/agent-eval-forge/issues/83), [#84](https://github.com/deghosal-2026/agent-eval-forge/issues/84).
 
 ### Checklist
 
 - [x] Design doc written and approved (`docs/2026-07-31-m6-framework-adapters-design.md`) → closes design phase
-- [x] Implement LangGraph Adapter (`src/evalforge/adapters/langgraph.py`) → [#81](https://github.com/deghosal-2026/agent-eval-forge/issues/81)
+- [x] Implement LangGraph Adapter (`src/evalforge/adapters/langgraph.py`) → [#77](https://github.com/deghosal-2026/agent-eval-forge/issues/77)
   - [x] Invoke LangGraph graph with scenario input
   - [x] Extract state graph trajectory nodes
   - [x] Normalize tool calls into EvalForge tool_call format
   - [x] Capture final output from graph
   - [x] Handle interrupts / human-in-the-loop states
-- [x] Handle graph errors and timeouts → [#28](https://github.com/deghosal-2026/agent-eval-forge/issues/28)
-- [x] Implement PydanticAI Adapter (`src/evalforge/adapters/pydantic_ai.py`) → [#82](https://github.com/deghosal-2026/agent-eval-forge/issues/82)
+- [x] Handle graph errors and timeouts
+- [x] Implement PydanticAI Adapter (`src/evalforge/adapters/pydantic_ai.py`) → [#78](https://github.com/deghosal-2026/agent-eval-forge/issues/78)
   - [x] Invoke PydanticAI agent with scenario input
   - [x] Extract typed output from agent result
   - [x] Capture tool usage from agent run context
   - [x] Map structured output to EvalForge schema expectations
   - [x] Handle agent errors and validation failures
-- [x] Write example agents for each framework → [#108](https://github.com/deghosal-2026/agent-eval-forge/issues/108)
-- [x] `examples/langgraph_agent.py` — simple tool-using agent → [#114](https://github.com/deghosal-2026/agent-eval-forge/issues/114)
+- [x] Write example agents for each framework
+- [x] `examples/langgraph_agent.py` — simple tool-using agent → [#79](https://github.com/deghosal-2026/agent-eval-forge/issues/79)
 - [x] `examples/pydantic_ai_agent.py` — simple tool-using agent → [#80](https://github.com/deghosal-2026/agent-eval-forge/issues/80)
-- [x] Write integration tests → [#103](https://github.com/deghosal-2026/agent-eval-forge/issues/103)
-- [x] LangGraph adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [x] PydanticAI adapter: run launch scenarios 1-5 against example agent → [#116](https://github.com/deghosal-2026/agent-eval-forge/issues/116)
-- [x] Verify trajectory capture matches agent's actual execution path → [#124](https://github.com/deghosal-2026/agent-eval-forge/issues/124)
+- [x] Write integration tests
+- [x] LangGraph adapter: run launch scenarios 1-5 against fixture agent
+- [x] PydanticAI adapter: run launch scenarios 1-5 against fixture agent
+- [x] Verify trajectory capture matches agent's actual execution path
 - [x] Write adapter documentation
-  - [x] `docs/adapters/langgraph.md`
-  - [x] `docs/adapters/pydantic-ai.md`
+  - [x] `docs/adapters/langgraph.md` → [#83](https://github.com/deghosal-2026/agent-eval-forge/issues/83)
+  - [x] `docs/adapters/pydantic-ai.md` → [#84](https://github.com/deghosal-2026/agent-eval-forge/issues/84)
   - [x] Adapter contract specification
   - [x] How to write a custom adapter
 
