@@ -157,6 +157,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     is_flag=True,
     help="Disable judge result caching",
 )
+@click.option(
+    "--sandbox",
+    is_flag=True,
+    help="Run in sandbox mode (restricted env, no API key passthrough)",
+)
 def run(
     pack: str,
     agent: str,
@@ -171,6 +176,7 @@ def run(
     fixtures: bool | None,
     fixtures_dir: str,
     no_cache: bool,
+    sandbox: bool,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -194,6 +200,7 @@ def run(
     if fixtures is not None:
         agent_config["fixtures"] = fixtures
     agent_config["fixtures_dir"] = fixtures_dir
+    agent_config["sandbox"] = sandbox
 
     # Parse the optional tag filter
     tag_list = tags.split(",") if tags else None
@@ -202,8 +209,21 @@ def run(
     runner = Runner(agent_config=agent_config, output_dir=output)
     runner.load_pack(pack)
 
-    # Step 2: Run all scenarios (or a filtered subset) and capture artifacts
+    # Step 2: Generate run ID and begin audit trail
     run_id = generate_run_id()
+    from evalforge.security.audit import AuditTrail
+    from evalforge.security.sanitize import sanitize_config
+
+    audit = AuditTrail(base_dir=output)
+    audit.record("run_start", {
+        "run_id": run_id,
+        "pack": pack,
+        "agent": sanitize_config(agent_config),
+        "sandbox": bool(agent_config.get("sandbox", False)),
+        "ci": ci,
+    })
+
+    # Step 3: Run all scenarios (or a filtered subset) and capture artifacts
     import time
 
     start_ms = int(time.time() * 1000)
@@ -301,6 +321,15 @@ def run(
     # Persist scores as JSON for later comparison and analysis
     with open(Path(f"{output}/runs/{run_id}/scores.json"), "w") as f:
         json.dump(result, f, indent=2)
+
+    # Step 6a: Record audit trail completion
+    audit.record("run_complete", {
+        "run_id": run_id,
+        "exit_code": run_score.exit_code,
+        "passed": run_score.totals["passed"],
+        "failed": run_score.totals["failed"],
+        "safety_violations": run_score.safety_violations,
+    })
 
     # Summary to stdout
     click.echo(f"Run complete: {run_id}")

@@ -19,6 +19,7 @@ from typing import Any
 
 from evalforge.adapters.base import Adapter, _inject_fixtures
 from evalforge.models.errors import AdapterError, AgentTimeoutError
+from evalforge.security.sandbox import SandboxConfig, sandboxed_run
 
 
 class SubprocessAdapter(Adapter):
@@ -35,24 +36,26 @@ class SubprocessAdapter(Adapter):
 
         _inject_fixtures(payload, config)
 
-        env = None
+        sandbox = SandboxConfig(
+            enabled=bool(config.get("sandbox", False)),
+        )
+
+        extra_env: dict[str, str] | None = None
         if config.get("fixtures"):
-            env = {**os.environ,
-                   "EVALFORGE_FIXTURES": "1",
-                   "EVALFORGE_FIXTURES_DIR": config.get("fixtures_dir", "scenarios/fixtures")}
+            extra_env = {
+                "EVALFORGE_FIXTURES": "1",
+                "EVALFORGE_FIXTURES_DIR": config.get("fixtures_dir", "scenarios/fixtures"),
+            }
 
         try:
-            # The command comes from operator-supplied agent config (trusted),
-            # not from agent/scenario data; run without a shell as a list.
-            proc = subprocess.run(  # noqa: S603 - trusted config, shell=False
-                args,
-                input=json.dumps(payload),
-                capture_output=True,
-                text=True,
+            result = sandboxed_run(
+                args=args,
+                config=sandbox,
+                env=extra_env,
                 timeout=timeout,
-                shell=False,
-                env=env,
+                input=json.dumps(payload),
             )
+            proc = result
         except subprocess.TimeoutExpired as exc:
             raise AgentTimeoutError(f"agent exceeded {timeout}s timeout") from exc
         except OSError as exc:
