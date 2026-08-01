@@ -17,9 +17,10 @@
 | M6: Framework Adapters | LangGraph adapter, PydanticAI adapter, adapter contract | Week 4 (Aug 11-17) |
 | M7: CLI & pytest | CLI surface, pytest plugin, output formats | Week 4 (Aug 11-17) |
 | M8: CI & Polish | CI integration, fixtures, caching, parallel execution, security | Week 4 (Aug 11-17) |
-| M9: OSS Readiness | OpenSSF badge, docs, LICENSE, README, community files | Week 4 (Aug 11-17) |
-| M10: Ship v0.1 | Final integration tests, GitHub release, PyPI | Week 4 (Aug 11-17) |
-| M11: OSS Cleanup & Launch | Squash history, public visibility, launch article, community | Week 4 (Aug 11-17) |
+| M9: Hardening & Security | Hardening, security enforcement, code review findings (Critical/High) | Week 4 (Aug 11-17) |
+| M10: OSS Readiness | OpenSSF badge, docs, LICENSE, README, community files | Week 4 (Aug 11-17) |
+| M11: Ship v0.1 | Final integration tests, GitHub release, PyPI | Week 4 (Aug 11-17) |
+| M12: OSS Cleanup & Launch | Squash history, public visibility, launch article, community | Week 4 (Aug 11-17) |
 
 ---
 
@@ -644,7 +645,123 @@
 
 ---
 
-## M9: OSS Readiness
+## M9: Hardening & Security
+
+**Goal:** Hardening, security enforcement, and expansion based on v0.1 code review.
+
+**Architecture:** Three tracks: Security & Trust (C1-C3, H1, A1-A2), Reliability & Reporting (H2-H4, A3-A4, M1-M2), DX & Schema (A5-A8, M3-M6, L1-L3)
+
+### Checklist
+
+**Critical Issues (C1-C3)**
+
+- [ ] **C1. Untrusted Agent Execution Not Sandboxed Outside Subprocess Adapter**
+  - [ ] Design a common agent runner subprocess wrapper for python_import that spawns a separate process and applies SandboxConfig
+  - [ ] Update python_import to call the wrapper (stdin payload in, stdout envelope out)
+  - [ ] Add allow/deny-list and optional proxy mediation for HTTP adapter in sandbox mode; document limitations
+  - [ ] Add Linux-only Docker CI job to validate isolation; add unit tests for env-stripping on all adapters
+- [ ] **C2. Scenario Trust Boundaries Not Enforced (Metadata Only)**
+  - [ ] Define trust→adapter/tool matrix in docs/spec.md
+  - [ ] Add a trust-policy evaluator step to `evalforge validate` and surface violations
+  - [ ] Reject disallowed adapters/tools at runtime; log policy decisions
+  - [ ] Include trust in run index/baseline and display in reports
+- [ ] **C3. Secret Exfiltration Risk in Non-Sandboxed CI Runs**
+  - [ ] Set `--sandbox` by default in CI templates
+  - [ ] Add a "Hardened CI" example in `docs/ci.md`
+  - [ ] Warn prominently in README/spec for non-sandbox runs
+
+**High-Severity Issues (H1-H5)**
+
+- [ ] **H1. OS-Level Sandbox Missing for Linux (Env-Only Today)**
+  - [ ] Add optional container runner path for subprocess/python_import
+  - [ ] Document runtime requirements and fallbacks
+  - [ ] Add Linux-only CI job to validate restrictions
+- [ ] **H2. Judge Cache Cost-Savings Estimate Is Naïve**
+  - [ ] Capture usage/tokens from judge SDKs where available; else use configurable defaults per model
+  - [ ] Expose in `cache_stats` with provenance (estimated vs measured)
+  - [ ] Document logic in `docs/design/scoring.md`
+- [ ] **H3. Silent Skips on Missing Gate/Scorer Hide Misconfigs**
+  - [ ] Replace silent `continue` with warn `ScoreResult`
+  - [ ] Add strict-mode failure conversion in engine or CLI
+  - [ ] Extend validate to catch unknown gates where feasible
+- [ ] **H4. "github-actions" Output Not Written to $GITHUB_STEP_SUMMARY**
+  - [ ] In CI templates, add a step to append formatter output to `$GITHUB_STEP_SUMMARY`
+  - [ ] In formatter or CLI, detect CI env and optionally write automatically
+- [ ] **H5. Judge Clients Untested in CI (Coverage Omitted)**
+  - [ ] Add mock-based contract tests to cover control flow
+  - [ ] Add docs on running live provider tests with keys; keep skipped by default
+
+**Medium-Severity Issues (M1-M9)**
+
+- [ ] **M1. RunCache/SchemaCache Not Fully Wired**
+  - [ ] Use SchemaCache in pack validation keyed by pack hash
+  - [ ] Decide on RunCache semantics for local dev loops; else remove
+- [ ] **M2. python_import + ThreadPoolExecutor Brittle on macOS (spawn)**
+  - [ ] Prefer ProcessPool for python_import in parallel or wrap via subprocess runner
+  - [ ] Add docs note for macOS spawn behavior
+- [ ] **M3. Logging Strategy Missing for Library Consumers**
+  - [ ] Introduce logging; keep formatter for CLI UX
+  - [ ] Add docs for logger configuration in CI
+- [ ] **M4. Baseline Rescoring vs Snapshot Comparison**
+  - [ ] Add `--compare-mode {rescore,snapshot}`
+  - [ ] Persist metric-results and prefer snapshot in strict CI
+- [ ] **M5. Trust Override Not Persisted/Validated Across Artifacts**
+  - [ ] Persist trust in run index & baseline models
+  - [ ] Validate consistency during compare/report
+- [ ] **M6. Output JSON Schema Not Versioned**
+  - [ ] Add schema_version to outputs
+  - [ ] Update docs + tests
+- [ ] **M7. Parallel Backpressure/Resource Knobs Sparse**
+  - [ ] Add `--max-outstanding` or similar
+  - [ ] Document CI tuning guidance
+- [ ] **M8. CI/Docs Drift Risk**
+  - [ ] Add a "Template Verification" checklist/CI job
+- [ ] **M9. Supply-Chain Hardening (SBOM, Dependency Monitoring)**
+  - [ ] Add a CI step to generate SBOM (e.g., CycloneDX), publish as artifact
+  - [ ] Add `.github/dependabot.yml` to monitor `pip` and `github-actions` ecosystems
+  - [ ] Optionally add `pip-audit`/`safety` job in CI; document CVE policy
+
+**Low-Severity Issues (L1-L6)**
+
+- [ ] **L1. Ruff Hygiene Failures**
+  - [ ] Run `ruff --fix` locally and in CI pre-commit hooks
+  - [ ] Add `pre-commit` config if not present
+- [ ] **L2. Two mypy Strict Errors**
+  - [ ] Add missing generics and adjust annotations/returns
+- [ ] **L3. Deterministic Test for Judge Error Exit Path Missing**
+  - [ ] Add a unit test that injects a dummy judge producing judge errors; assert exit code 3
+- [ ] **L4. Scenario ID Character Set Strictness**
+  - [ ] Document allowed set and consider expanding safe characters if needed
+- [ ] **L5. Formatter Centralization**
+  - [ ] Factor common sections for consistent UX across outputs
+- [ ] **L6. Large JSON Emitted to Stdout in CI**
+  - [ ] Add quiet mode for CI (suppress stdout JSON when files are written) or write to `$GITHUB_STEP_SUMMARY`
+
+### Success Criteria
+
+- All Critical and High findings have fix checklists implemented and tested
+- Trust policies enforced for all trust levels (builtin, local, external)
+- Sandbox isolation extends to python_import and HTTP adapters
+- Judge cache reports accurate cost savings with provenance
+- Missing gate/scorer configurations produce explicit warnings/errors
+- Judge clients have contract tests; live-key jobs documented
+- Library surfaces use stdlib logging; CLI UX unchanged
+- Output JSON includes schema_version for downstream stability
+- Parallel execution has documented backpressure knobs
+- Supply-chain posture improved (SBOM + Dependabot)
+
+### Milestone Exit Gates
+
+- [ ] All Critical fix items implemented and verified
+- [ ] All High fix items implemented and verified
+- [ ] Full test suite passes (`pytest`)
+- [ ] Lint clean (`ruff check` zero errors)
+- [ ] Type check clean (`mypy --strict` zero errors)
+- [ ] Code coverage > 90% (`pytest --cov`)
+
+---
+
+## M10: OSS Readiness
 
 **Goal:** OpenSSF Best Practices badge, polished docs, community files, and contributor experience.
 
@@ -703,7 +820,7 @@
 
 ---
 
-## M10: Ship v0.1
+## M11: Ship v0.1
 
 **Goal:** Final integration, GitHub release, PyPI publish.
 
@@ -783,7 +900,7 @@
 
 ---
 
-## M11: OSS Cleanup & Launch
+## M12: OSS Cleanup & Launch
 
 **Goal:** Repo cleanup, history squash, public visibility, launch article, community engagement.
 
@@ -833,7 +950,7 @@
 | 2/5 | "Scenario Packs and Regression Testing for Agent Behavior" | After M5 (all launch scenarios work) |
 | 3/5 | "Trajectory Scoring: Why the Agent's Path Matters" | After M5 |
 | 4/5 | "Safety-First Agent Gating: Catch Boundary Violations Before They Ship" | After M6 (adapters + safety scenarios) |
-| 5/5 | "EvalForge: A Framework-Agnostic Release Gate for AI Agents" | After M10 (launch) |
+| 5/5 | "EvalForge: A Framework-Agnostic Release Gate for AI Agents" | After M11 (launch) |
 
 ---
 
