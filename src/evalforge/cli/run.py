@@ -130,7 +130,7 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     default=1,
     type=int,
     show_default=True,
-    help="Number of parallel workers (single-threaded in v0.1)",
+    help="Number of parallel workers (1 = serial execution)",
 )
 @click.option(
     "--timeout",
@@ -207,7 +207,7 @@ def run(
     import time
 
     start_ms = int(time.time() * 1000)
-    artifacts = runner.run_all(tags=tag_list, run_id=run_id)
+    artifacts = runner.run_all(tags=tag_list, run_id=run_id, workers=workers)
     duration_ms = int(time.time() * 1000) - start_ms
 
     # Step 3: Score artifacts against scenario expectations

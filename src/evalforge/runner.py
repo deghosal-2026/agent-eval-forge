@@ -20,6 +20,7 @@ import hashlib
 import json
 import secrets
 import time
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
@@ -96,6 +97,7 @@ class Runner:
         self,
         tags: list[str] | None = None,
         run_id: str | None = None,
+        workers: int = 1,
     ) -> list[RunArtifact]:
         """Run all scenarios (optionally filtered by tags) and save results."""
         pack = self.pack
@@ -106,8 +108,55 @@ class Runner:
         rid = run_id or generate_run_id()
         start_iso = _now_iso()
         start_ms = _now_ms()
-        artifacts = [self.run_one(s.id, run_id=rid) for s in scenarios]
+
+        if workers <= 1:
+            artifacts = [self.run_one(s.id, run_id=rid) for s in scenarios]
+        else:
+            artifacts = self._run_parallel(scenarios, rid, workers)
+
         self._save_run(rid, artifacts, pack, scenarios, tags, start_iso, start_ms)
+        return artifacts
+
+    def _run_parallel(
+        self,
+        scenarios: list[Any],
+        run_id: str,
+        workers: int,
+    ) -> list[RunArtifact]:
+        """Run scenarios in parallel using a thread pool."""
+        artifacts: list[RunArtifact] = []
+
+        def _run_one(s: Any) -> RunArtifact:
+            return self.run_one(s.id, run_id=run_id)
+
+        with ThreadPoolExecutor(max_workers=workers) as executor:
+            futures = {executor.submit(_run_one, s): s for s in scenarios}
+            for future in as_completed(futures):
+                try:
+                    artifact = future.result()
+                    artifacts.append(artifact)
+                except Exception as exc:
+                    from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
+
+                    scenario = futures[future]
+                    artifacts.append(
+                        RunArtifact(
+                            id=f"{run_id}-{scenario.id}",
+                            scenario_id=scenario.id,
+                            agent=_sanitize_agent(self.agent_config),
+                            timestamp=RunTimestamps(
+                                start=_now_iso(), end=_now_iso(), duration_ms=0,
+                            ),
+                            output=RunOutput(final=None, structured=None),
+                            trajectory=[],
+                            cost=Cost(),
+                            status="error",
+                            error=f"parallel worker error: {exc}",
+                        )
+                    )
+
+        scenario_order = {s.id: i for i, s in enumerate(scenarios)}
+        artifacts.sort(key=lambda a: scenario_order.get(a.scenario_id, 9999))
         return artifacts
 
     def _save_run(
