@@ -12,6 +12,7 @@ from typing import Any
 
 from evalforge.adapters.base import Adapter
 from evalforge.adapters.http import HttpAdapter
+from evalforge.adapters.langgraph import LangGraphAdapter
 from evalforge.adapters.python_import import PythonImportAdapter
 from evalforge.adapters.subprocess import SubprocessAdapter
 
@@ -19,6 +20,7 @@ ADAPTERS: dict[str, type[Adapter]] = {
     "subprocess": SubprocessAdapter,
     "python": PythonImportAdapter,
     "http": HttpAdapter,
+    "langgraph": LangGraphAdapter,
 }
 
 
