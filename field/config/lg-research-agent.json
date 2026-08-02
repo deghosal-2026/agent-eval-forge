@@ -1,0 +1,28 @@
+{
+  "agent_id": "lg-research-agent",
+  "name": "Lg Research Agent",
+  "repo": "https://github.com/NickAlvarez20/Lab-LangGraph-Basics---Build-Stateful-AI-Workflows",
+  "commit": "TODO",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "task_7_research_agent",
+    "function": "app"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "no entry point detected; using list-file adapter"
+  ]
+}

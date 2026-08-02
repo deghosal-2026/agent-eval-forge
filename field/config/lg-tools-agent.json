@@ -1,0 +1,28 @@
+{
+  "agent_id": "lg-tools-agent",
+  "name": "Lg Tools Agent",
+  "repo": "https://github.com/langchain-ai/oap-langgraph-tools-agent",
+  "commit": "8bf78d7",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "evalforge_wrapper",
+    "function": "graph"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "quarantined for local tier: dep incompatibility — ormsgpack C extension compiled for venv Python 3.11, field runner uses Python 3.14"
+  ]
+}

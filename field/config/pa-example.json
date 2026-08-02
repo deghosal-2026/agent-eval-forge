@@ -1,0 +1,25 @@
+{
+  "agent_id": "pa-example",
+  "name": "PydanticAI Hardened Example",
+  "repo": "local",
+  "commit": "0",
+  "adapter_type": "pydantic-ai",
+  "adapter_config": {
+    "module": "examples.pydantic_ai_agent",
+    "function": "build_agent"
+  },
+  "setup_commands": [
+    "echo local"
+  ],
+  "scenario_packs": [
+    "scenarios/pydantic-ai-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "pydantic-ai"
+  ],
+  "quarantined": false
+}

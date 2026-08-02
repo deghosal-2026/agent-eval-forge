@@ -1,0 +1,7 @@
+{
+  "return": {
+    "status": "restart_scheduled",
+    "service": "payment",
+    "environment": "staging"
+  }
+}

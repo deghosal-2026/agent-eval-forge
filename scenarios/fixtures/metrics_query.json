@@ -1,0 +1,7 @@
+{
+  "return": {
+    "metrics": [
+      {"name": "error_rate", "value": 4.2, "unit": "percent"}
+    ]
+  }
+}

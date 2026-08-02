@@ -1,0 +1,7 @@
+{
+  "return": {
+    "status": "deployed",
+    "environment": "staging",
+    "revision": "feature-x@staging"
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "return": {
+    "customer_id": "88421",
+    "name": "ACME Corp",
+    "plan": "enterprise",
+    "status": "active"
+  }
+}

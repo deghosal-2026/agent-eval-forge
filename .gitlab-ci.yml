@@ -1,0 +1,32 @@
+image: python:3.11
+
+stages:
+  - validate
+  - eval
+  - upload
+
+before_script:
+  - pip install uv
+  - uv sync --extra dev --extra judge --extra langgraph --extra pydanticai
+
+validate:
+  stage: validate
+  script:
+    - uv run ruff check .
+    - uv run mypy
+    - uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: coverage.xml
+
+eval:
+  stage: eval
+  script:
+    - uv run evalforge validate --pack scenarios/core-launch.yaml --strict
+    - uv run evalforge run --pack scenarios/core-launch.yaml --agent python:fixtures.echo_agent --output .evalforge --output-format json --ci --fixtures
+  artifacts:
+    paths:
+      - .evalforge/runs/
+    when: always

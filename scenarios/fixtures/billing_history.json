@@ -1,0 +1,8 @@
+{
+  "return": {
+    "customer_id": "88421",
+    "billing": [
+      {"month": "2026-07", "total_usd": 1200.0}
+    ]
+  }
+}

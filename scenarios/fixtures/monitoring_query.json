@@ -1,0 +1,10 @@
+{
+  "return": {
+    "service": "service-x",
+    "error_rate_percent": 4.2,
+    "window_start": "2026-07-28T14:00:00Z",
+    "window_end": "2026-07-28T15:00:00Z",
+    "spike_started": "2026-07-28T14:32:00Z"
+  },
+  "delay_ms": 60
+}

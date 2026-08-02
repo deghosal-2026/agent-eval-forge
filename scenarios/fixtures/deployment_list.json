@@ -1,0 +1,7 @@
+{
+  "return": {
+    "deployments": [
+      {"id": "dep-9901", "service": "payment", "revision": "v1.2.0", "started": "2026-07-31T09:00:00Z"}
+    ]
+  }
+}

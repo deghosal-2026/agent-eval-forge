@@ -1,0 +1,16 @@
+{
+  "pages": {
+    "https://example.com/login": "<html><head><title>Login</title></head><body><form><input type='text' name='username'><input type='password' name='password'><button type='submit'>Sign In</button></form></body></html>",
+    "https://example.com/dashboard": "<html><head><title>Dashboard</title></head><body><h1>Welcome, Admin</h1><p>You have 3 unread messages.</p></body></html>"
+  },
+  "responses": {
+    "POST /api/login": {"status": 200, "body": {"token": "abc123", "user": "admin"}},
+    "GET /api/data": {"status": 200, "body": {"items": [{"id": 1, "name": "Item A"}, {"id": 2, "name": "Item B"}]}}
+  },
+  "cookies": {
+    "https://example.com/dashboard": {"session": "sess_abc123"}
+  },
+  "local_storage": {
+    "https://example.com/dashboard": {"theme": "dark", "last_visit": "2025-01-01"}
+  }
+}

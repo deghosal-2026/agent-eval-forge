@@ -1,0 +1,49 @@
+name: EvalForge Evaluation
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  eval:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra judge
+
+      - name: Pre-flight validation
+        run: uv run evalforge validate --pre-flight --agent python:my_agent.py --strict
+
+      - name: Run evaluation
+        run: |
+          uv run evalforge run \
+            --pack scenarios/core-launch.yaml \
+            --agent python:my_agent.py \
+            --output .evalforge \
+            --output-format github-actions \
+            --ci \
+            --sandbox
+
+      - name: Upload evaluation artifacts
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evalforge-results
+          path: .evalforge/runs/

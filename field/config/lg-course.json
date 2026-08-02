@@ -1,0 +1,29 @@
+{
+  "agent_id": "lg-course",
+  "name": "Lg Course",
+  "repo": "https://github.com/luizomf/react_agent_langgraph_course",
+  "commit": "1d6ccf0",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "examples.ex011.graph",
+    "function": "build_graph"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "course repo with 12+ examples; no single agent entry point",
+    "pinned to examples.ex011 tool-calling graph; quarantined pending wiring"
+  ]
+}

@@ -1,0 +1,61 @@
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.Python
+env/
+venv/
+.venv/
+*.log
+.DS_Store
+.env
+.env.*
+!.env.example
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+coverage/
+htmlcov/
+.tox/
+.nox/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.bandit
+.coverage
+.evalforge/
+
+# Field test caches (do not commit third-party agent repos)
+field/agents/*
+!field/agents/*/evalforge_wrapper.py
+!field/agents/*/pyproject.toml
+field/.llm_cache/
+
+# Superpowers skill directory (local agent skill caches)
+.superpowers/
+
+# Local docker test artifacts
+test-results/
+
+# Field test results (contains live API keys in LLM request/response captures)
+field/results/
+field/results.*/
+
+# Generated data and vector stores
+data/
+
+# uv lock file (using pyproject.toml only)
+uv.lock
+
+# ruff cache and reports
+.ruff_cache/
+
+# OS generated files
+.DS_Store

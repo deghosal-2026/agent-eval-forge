@@ -1,0 +1,7 @@
+{
+  "return": {
+    "alerts": [
+      {"id": "a-77", "service": "payment", "type": "latency", "started": "2026-07-31T09:05:00Z"}
+    ]
+  }
+}

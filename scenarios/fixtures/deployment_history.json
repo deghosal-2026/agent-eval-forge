@@ -1,0 +1,9 @@
+{
+  "return": {
+    "deployments": [
+      {"id": "dep-8821", "service": "service-x", "started": "2026-07-28T14:30:00Z", "status": "success", "sha": "abc123"},
+      {"id": "dep-8812", "service": "service-x", "started": "2026-07-27T09:15:00Z", "status": "success", "sha": "def456"}
+    ]
+  },
+  "delay_ms": 100
+}

@@ -1,0 +1,28 @@
+{
+  "agent_id": "lg-skills",
+  "name": "Lg Skills",
+  "repo": "https://github.com/pessini/langgraph-skills-agent",
+  "commit": "a4999be",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "evalforge_wrapper",
+    "function": "graph"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "quarantined for local tier: dep incompatibility — langchain-ollama/ormsgpack C extensions compiled for venv Python 3.11, field runner uses Python 3.14"
+  ]
+}

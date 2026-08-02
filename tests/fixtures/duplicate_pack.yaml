@@ -1,0 +1,10 @@
+pack:
+  name: "dup"
+  version: "1.0.0"
+scenarios:
+  - id: "sc-1"
+    title: "one"
+    input: "i"
+  - id: "sc-1"
+    title: "one again"
+    input: "i"
