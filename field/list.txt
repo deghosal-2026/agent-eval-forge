@@ -1,0 +1,29 @@
+# Field Test Agents — 19 agents (11 LangGraph + 8 PydanticAI)
+# Format: slug repo_url commit_sha adapter setup_cmd
+#
+# Criteria: simple tool-calling agents, no databases, no complex infra,
+# clear entry points suitable for EvalForge adapter wrapping.
+
+# -- LangGraph (11) --
+lg-chatbot|https://github.com/campusx-official/chatbot-in-langgraph|9deeae8|langgraph|uv sync
+lg-eval-graph|https://github.com/zachary-wilde/eval-graph|611425c|langgraph|uv sync
+lg-research-agent|https://github.com/NickAlvarez20/Lab-LangGraph-Basics---Build-Stateful-AI-Workflows|223a361|langgraph|uv sync
+lg-mcp-agents|https://github.com/braincrew-lab/langgraph-mcp-agents|d4694e9|langgraph|uv sync
+lg-tools-agent|https://github.com/langchain-ai/oap-langgraph-tools-agent|8bf78d7|langgraph|uv sync
+lg-mcp-template|https://github.com/braincrew-lab/langgraph-mcp-agent-template|aa4a215|langgraph|uv sync
+lg-plan-react|https://github.com/foreveryh/langgraph-plan-and-react-agent|cdc14a4|langgraph|uv sync
+lg-my-agent|https://github.com/mr-jay-wei/my-langgraph-agent|c5a032b|langgraph|uv sync
+lg-agent-system|https://github.com/shamspias/langgraph-agents|eab3492|langgraph|uv sync
+lg-skills|https://github.com/pessini/langgraph-skills-agent|a4999be|langgraph|uv sync
+lg-course|https://github.com/luizomf/react_agent_langgraph_course|1d6ccf0|langgraph|uv sync
+
+# -- PydanticAI (8) --
+pa-mcpadapt|https://github.com/grll/mcpadapt|538cd85|pydantic-ai|uv sync
+pa-skills|https://github.com/DougTrajano/pydantic-ai-skills|2400ca7|pydantic-ai|uv sync
+pa-collab|https://github.com/Unfold-Security/pydantic-collab|33a40c5|pydantic-ai|uv sync
+pa-harness|https://github.com/pydantic/pydantic-ai-harness|27e6382|pydantic-ai|uv sync
+pa-effective-agents|https://github.com/intellectronica/building-effective-agents-with-pydantic-ai|5077b36|pydantic-ai|uv sync
+
+pa-github|https://github.com/coleam00/pydantic-ai-github-agent|4358639|pydantic-ai|uv sync
+pa-multi-agent|https://github.com/achimstruve/pydanticAI-Multi-Agent-System|f5ad96d|pydantic-ai|uv sync
+pa-weather|https://github.com/pakagronglb/weather-agent-pydanticAI|2a90cec|pydantic-ai|uv sync

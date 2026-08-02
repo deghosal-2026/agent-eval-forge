@@ -1,0 +1,7 @@
+{
+  "pack": { "name": "test-pack", "version": "1.0.0" },
+  "scenarios": [
+    { "id": "sc-1", "title": "Scenario one", "input": "input one" },
+    { "id": "sc-2", "title": "Scenario two", "input": "input two" }
+  ]
+}

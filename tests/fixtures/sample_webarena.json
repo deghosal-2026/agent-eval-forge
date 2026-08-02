@@ -1,0 +1,16 @@
+[
+  {
+    "task_id": "wa-1",
+    "sites": ["shopping"],
+    "intent": "Find a red laptop under $1000",
+    "start_urls": ["http://example.com"],
+    "expected": {"product_name": "Red Laptop", "price_max": 1000}
+  },
+  {
+    "task_id": "wa-2",
+    "sites": ["shopping_admin"],
+    "intent": "Add a new product listing for wireless headphones",
+    "start_urls": ["http://example.com/admin"],
+    "expected": {"action": "create", "entity": "product", "status": "listed"}
+  }
+]

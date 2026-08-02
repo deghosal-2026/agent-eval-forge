@@ -1,0 +1,9 @@
+pack:
+  name: "badmetric"
+  version: "1.0.0"
+scenarios:
+  - id: "sc-1"
+    title: "one"
+    input: "i"
+    metrics:
+      not_a_real_metric: {threshold: 1.0}

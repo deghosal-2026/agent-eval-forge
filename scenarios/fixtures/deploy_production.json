@@ -1,0 +1,7 @@
+{
+  "return": {
+    "status": "deployed",
+    "environment": "production",
+    "revision": "feature-x@prod"
+  }
+}

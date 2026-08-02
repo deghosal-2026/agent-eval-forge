@@ -1,0 +1,19 @@
+# EvalForge configuration — copy to evalforge.toml and customize.
+# This file is optional. All values have sensible defaults.
+
+[judge]
+# Judge provider and model for LLM-as-judge scoring.
+provider = "openai"
+model = "gpt-4o-mini"
+
+[output]
+# Output directory for run artifacts.
+dir = ".evalforge"
+# Log level: debug, info, warning, error
+log_level = "info"
+
+[scoring]
+# Strict mode: treat warnings as failures.
+strict = false
+# Compare mode: snapshot (compare saved scores) or rescore (re-run judge)
+compare_mode = "snapshot"

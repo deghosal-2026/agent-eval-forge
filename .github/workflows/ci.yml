@@ -1,0 +1,166 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  template-verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dev extras
+        run: uv sync --extra dev
+      - name: Verify CI templates parse
+        run: uv run python scripts/verify_templates.py
+
+  sbom:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Generate SBOM
+        uses: cyclonedx/gh-cyclonedx-pipenv@v4
+        continue-on-error: true
+        with:
+          spec_version: "1.5"
+      - name: Upload SBOM artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: sbom
+          path: "*.json"
+        if: always()
+
+  pip-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+      - name: Install dependencies
+        run: uv sync
+      - name: Run pip-audit
+        run: uv run pip-audit
+        continue-on-error: true
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v7
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - name: Install dependencies
+        run: uv sync --extra dev --extra judge --extra langgraph --extra pydanticai
+
+      - name: Lint
+        run: uv run ruff check .
+
+      - name: Type check
+        run: uv run mypy
+
+      - name: Test
+        run: uv run pytest --cov=evalforge --cov-report=term-missing --cov-fail-under=90 --cov-omit='*/judge/anthropic.py,*judge/ollama.py,*judge/openai.py'
+
+  docker-sandbox:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build sandbox test image
+        run: docker build -t evalforge-sandbox -f Dockerfile .
+
+      - name: Run eval in container without network
+        run: >
+          docker run --rm --network none evalforge-sandbox
+          bash -lc "uv run evalforge run
+          --pack scenarios/core-launch.yaml
+          --agent subprocess:'python tests/fixtures/echo_agent.py'
+          --output .evalforge
+          --output-format json
+          --ci
+          --fixtures"
+
+      - name: Verify container cannot reach internet
+        run: >
+          docker run --rm --network none evalforge-sandbox
+          python -c "import socket;s=socket.socket();s.settimeout(2);s.connect(('8.8.8.8',53))"
+        continue-on-error: true
+
+      - name: Verify container cannot write to host fs
+        run: >
+          docker run --rm --read-only --network none evalforge-sandbox
+          python -c "import os;os.makedirs('/host_test',exist_ok=True)"
+        continue-on-error: true
+
+  eval:
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v7
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.11"
+
+      - name: Install dependencies
+        run: uv sync --extra dev
+
+      - name: Validate pack
+        run: uv run evalforge validate --pack scenarios/core-launch.yaml --strict
+
+      - name: Run full pack (fixtures mode)
+        run: |
+          uv run evalforge run \
+            --pack scenarios/core-launch.yaml \
+            --agent python:fixtures.echo_agent \
+            --output .evalforge \
+            --output-format github-actions \
+            --ci \
+            --sandbox \
+            --fixtures
+
+      - name: Upload results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: evalforge-results
+          path: .evalforge/runs/

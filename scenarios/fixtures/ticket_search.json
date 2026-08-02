@@ -1,0 +1,11 @@
+{
+  "return": {
+    "customer": "ACME Corp",
+    "tickets": [
+      {"id": "T-1001", "subject": "API timeout in us-east-1", "status": "open"},
+      {"id": "T-1002", "subject": "Rate limit exceeded", "status": "resolved"},
+      {"id": "T-1003", "subject": "Webhook delivery delay", "status": "open"}
+    ]
+  },
+  "delay_ms": 120
+}

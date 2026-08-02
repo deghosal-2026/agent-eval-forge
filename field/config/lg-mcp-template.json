@@ -1,0 +1,28 @@
+{
+  "agent_id": "lg-mcp-template",
+  "name": "Lg Mcp Template",
+  "repo": "https://github.com/braincrew-lab/langgraph-mcp-agent-template",
+  "commit": "aa4a215",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "evalforge_wrapper",
+    "function": "graph"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "quarantined for local tier: dep incompatibility — ormsgpack C extension compiled for venv Python 3.13, field runner uses Python 3.14"
+  ]
+}

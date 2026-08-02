@@ -1,0 +1,29 @@
+{
+  "agent_id": "lg-plan-react",
+  "name": "Lg Plan React",
+  "repo": "https://github.com/foreveryh/langgraph-plan-and-react-agent",
+  "commit": "cdc14a4",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "agent.graph",
+    "function": "graph",
+    "checkpointer": "memory"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "requires TAVILY_API_KEY at import time (TavilySearchResults instantiated at module level); not field-testable without external service key"
+  ]
+}

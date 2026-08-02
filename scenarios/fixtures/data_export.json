@@ -1,0 +1,7 @@
+{
+  "return": {
+    "status": "export_scheduled",
+    "format": "csv",
+    "download_url": "https://export.internal/data/export-2026-07-31.csv"
+  }
+}

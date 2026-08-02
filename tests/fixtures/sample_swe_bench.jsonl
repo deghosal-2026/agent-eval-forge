@@ -1,0 +1,3 @@
+{"instance_id": "swe-1", "repo": "test/repo", "issue": "Fix bug in calculator", "base_commit": "abc123", "patch": "--- a/calc.py\n+++ b/calc.py\n@@ -1,5 +1,5 @@\n def add(a, b):\n-    return a - b\n+    return a + b"}
+{"instance_id": "swe-2", "repo": "test/utils", "issue": "Add error handling to file reader", "base_commit": "def456", "patch": "..."}
+{"instance_id": "swe-3", "repo": "test/lib", "issue": "Refactor parser to use AST", "base_commit": "ghi789", "patch": "...", "hints_text": "Look at the visitor pattern", "FAIL_TO_PASS": ["test_parse_1", "test_parse_2"], "PASS_TO_PASS": ["test_format_1"]}

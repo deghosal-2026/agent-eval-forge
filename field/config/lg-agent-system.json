@@ -1,0 +1,29 @@
+{
+  "agent_id": "lg-agent-system",
+  "name": "Lg Agent System",
+  "repo": "https://github.com/shamspias/langgraph-agents",
+  "commit": "eab3492",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "agents.hungry_services.agent",
+    "function": "build_graph"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "framework repo: BaseAgent ABC + concrete subclasses, no module-level instance",
+    "build_graph is a method, not a module function; quarantined pending wrapper"
+  ]
+}

@@ -1,0 +1,29 @@
+{
+  "agent_id": "lg-my-agent",
+  "name": "Lg My Agent",
+  "repo": "https://github.com/mr-jay-wei/my-langgraph-agent",
+  "commit": "c5a032b",
+  "adapter_type": "langgraph",
+  "adapter_config": {
+    "module": "async.agent_chatbot_async",
+    "function": "chat"
+  },
+  "setup_commands": [
+    "uv sync"
+  ],
+  "scenario_packs": [
+    "scenarios/langgraph-core.yaml"
+  ],
+  "acceptance": {
+    "minimum_pass_rate": 0.5,
+    "required_metrics": []
+  },
+  "tags": [
+    "langgraph"
+  ],
+  "quarantined": true,
+  "_notes": [
+    "full CLI app: agent instance only created in __main__; _build_graph is a method",
+    "quarantined pending wrapper"
+  ]
+}

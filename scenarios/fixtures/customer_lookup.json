@@ -1,0 +1,8 @@
+{
+  "return": {
+    "customer": "ACME Corp",
+    "support_tier": "premium",
+    "account_status": "active"
+  },
+  "delay_ms": 80
+}
