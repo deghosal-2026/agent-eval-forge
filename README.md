@@ -210,10 +210,10 @@ hardcoded model names, Python version skew, and nested repo structures.
 | M7 — CLI & pytest | ✅ |
 | M8 — CI & Polish | ✅ |
 | M9 — Hardening & Security | ✅ |
-| M9.5 — Integration & Field Tests | ✅ (FT5 CI job pending) |
+| M9.5 — Integration & Field Tests | ✅ |
 | M10 — Example Agents & DX | ✅ |
-| M11 — Scale-Up, Docker & CI | 🔄 In progress |
-| M12 — Ship v0.1.0 & Launch | ⏳ |
+| M11 — Scale-Up, Docker & CI | ✅ |
+| M12 — Ship v0.1.0 & Launch | ✅ |
 
 See the [WBS](docs/wbs.md) for the full milestone plan with GitHub issue tracking.
 
