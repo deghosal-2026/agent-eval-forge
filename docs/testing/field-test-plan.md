@@ -19,6 +19,10 @@ Field tests validate that agent-eval-forge works correctly with **real, third-pa
 
 Field tests are the **final gate** before a release: if an agent that worked last week fails this week, the change is either a breaking regression (block release) or an upstream agent change (document and adapt).
 
+Target Volume: Run field tests against 30 public, open-source agents sourced from GitHub across two primary frameworks: LangGraph and PydanticAI (15 each). These represent real-world agents with tool use and varied graph topologies.
+
+Execution Mode (Near-Term): Local sweep (not CI) using a curated, pre-approved list of 30 agents. The full 100-agent roster and stretch goals are cataloged in [docs/testing/field-test-agents.md](field-test-agents.md). CI wiring in §6 remains as a future/secondary path; initial runs will be executed on a developer machine with OpenRouter credentials configured locally.
+
 ## 2. Agent Selection Criteria
 
 ### Qualification Criteria
@@ -50,6 +54,17 @@ Candidate agents are sourced from:
 - **Manual additions:** documented in `field/AGENTS.md` with rationale
 
 Each candidate is evaluated via a checklist (see `field/CHECKLIST.md` template in the field harness) before inclusion.
+
+Minimum Mix: The suite includes 15 LangGraph and 15 PydanticAI agents (50/50 split) to exercise both adapter families.
+
+License Policy: Only OSI-approved open-source licenses are included (MIT, Apache-2.0, BSD-2/3, GPL, LGPL, AGPL). Exclude non-OSI and non-commercial licenses. We do not vendor or redistribute third-party code; clones are local at pinned SHAs.
+
+Popularity Bands for Curation (30 total agents):
+- High stars (≥ 1000): 10 agents total — 5 LangGraph, 5 PydanticAI
+- Medium stars (100–999): 10 agents total — 5 LangGraph, 5 PydanticAI
+- Very low stars (< 50): 10 agents total — 5 LangGraph, 5 PydanticAI
+
+Rationale: The very low band intentionally surfaces likely issues in poorly maintained agents to validate harness robustness and error taxonomy.
 
 ## 3. Sourcing Strategy
 
@@ -530,8 +545,8 @@ jobs:
           --field-cost-budget ${{ matrix.agent.cost_budget }}
           --tb=short -q
         env:
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          OPENROUTER_API_KEY: ${{ secrets.OPENROUTER_API_KEY }}
+          EVALFORGE_FIELD_MODEL_TIER: ${{ inputs.model_tier || 'cheap' }}
       - name: Upload results
         uses: actions/upload-artifact@v4
         if: always()
@@ -707,6 +722,167 @@ Flake tracking is stored in `field/flake_tracker.json`:
 
 ## 10. Cost Budget
 
+### Model Strategy and Tiers
+
+Execution tiers balance coverage and cost:
+
+- Local (default smoke): Apple MLX using Llama 3.1 8B Instruct (4-bit, e.g., Q4_K_M). Zero API cost; validates adapter/tooling integration quickly.
+- Cheap cloud tier (OpenRouter): `openai/gpt-4o-mini` for low-cost, reasonably faithful tool-use behavior.
+- Better cloud tier (OpenRouter): `openai/gpt-4o` for stronger reasoning and more robust tool-use patterns.
+
+Notes
+- No Anthropic models are used for field tests by default (cost control).
+- Selection is controlled per run via `EVALFORGE_FIELD_MODEL_TIER` with values: `local` | `cheap` | `better`.
+  - Default `local` for smoke and pre-flight; `cheap` for most CI cycles; `better` for scheduled/nightly sweeps.
+- OpenRouter is the single cloud entry point. Required secret: `OPENROUTER_API_KEY`.
+
+### Token and Cost Estimates (OpenRouter)
+
+Assumptions per agent-scenario run (medium context): ~2,000 input tokens and ~500 output tokens; 5 scenarios per agent; 30 agents total (150 runs).
+
+- 30 agents (150 runs): ~300k input, ~75k output tokens
+
+Indicative costs (subject to routing prices):
+- Cheap tier (`openai/gpt-4o-mini`, ~${0.15}/M input, ~${0.60}/M output) → ≈$0.09 per full 30-agent sweep
+- Better tier (`openai/gpt-4o`, ~${5}/M input, ~${15}/M output) → ≈$2.63 per full 30-agent sweep
+
+Heavier RAG contexts (e.g., ~6,000 in / ~1,500 out per run, 150 runs) size to ≈$0.27 (cheap) or ≈$7.88 (better) per sweep. Running both tiers doubles model cost for that cycle.
+
+### Local Field-Test Execution (Out-of-CI)
+
+We will run a full 30-agent sweep locally (not in CI) immediately after plan approval:
+
+1. Curated agent list: 30 repositories (15 LangGraph, 15 PydanticAI) proposed for your approval prior to execution.
+2. Model tiers per pass: `local` → `cheap` → `better` (optional). Default flow: run MLX locally first for smoke; then a cheap-tier sweep; optionally a better-tier sweep.
+3. Invocation (example):
+   - `EVALFORGE_FIELD_MODEL_TIER=local  uv run pytest field/ -m field -q`
+   - `EVALFORGE_FIELD_MODEL_TIER=cheap  OPENROUTER_API_KEY=... uv run pytest field/ -m field -q`
+   - `EVALFORGE_FIELD_MODEL_TIER=better OPENROUTER_API_KEY=... uv run pytest field/ -m field -q`
+4. Secrets: Configure `OPENROUTER_API_KEY` locally (never committed). No Anthropic keys required.
+
+### Artifacts and Reporting (Local Sweep)
+
+The local sweep will persist a complete, human-reviewable record for analysis while masking secrets:
+
+- Root: `field/results/<timestamp>/`
+  - `summary.json` — per-agent pass/fail, pass rate, retries, safety gate status, model tier
+  - `observations.md` — structured notes: flakes, common failure patterns, infra/setup failures, adapter mismatches
+  - `final_finding.md` — one-paragraph conclusion on overall readiness and top risks
+  - `agents/<agent_id>/`
+    - `scenarios.json` — list of scenario IDs executed and outcomes
+    - `scores.json` — raw metric results with pass/fail per scenario
+    - `runs.jsonl` — one JSON object per run including status, duration, exit reasons
+    - `responses/` — LLM interaction envelopes per scenario (prompt, tool calls, completion); secrets redacted
+    - `logs/` — setup/install logs and adapter/runtime stderr; sanitized for secrets
+
+Retention: Local-only by default. CI artifacts in §6 remain separate. We avoid uploading third-party agent code or raw logs outside the local machine unless explicitly approved.
+
+### Agent List Curation (Pre-Run)
+
+- We will propose a curated list of 30 public agents (15 LangGraph, 15 PydanticAI) with:
+  - Repo URL, license, last-commit date, stars
+  - Adapter type and entrypoint
+  - Pin suggestion (commit SHA)
+  - Setup commands and expected env vars
+- You will review and approve the list before the local sweep begins. Once approved, entries are added as `field/field.json/*.json` records.
+
+Stretch Goal: After the initial 30-agent sweep, expand to a 100-agent roster (40 LangGraph + 60 PydanticAI across high/medium/low tiers). The full catalog is maintained in [docs/testing/field-test-agents.md](field-test-agents.md).
+
+## 11. Resume Mode (Token-Safe Re-Runs)
+
+### Goals
+
+- Avoid re-running already-completed agent+scenario tests when resuming a local sweep to prevent unnecessary token usage.
+- Support “resume latest” and “resume from specific run folder” behaviors.
+- Allow targeting only failed or pending cases.
+- Keep implementation simple and file-based (no DB), portable across machines.
+
+### Deterministic Run Manifest
+
+Before execution, the harness computes a deterministic manifest of all intended runs for the selected tier and agent set:
+
+```
+manifest = [
+  {"agent_id": A, "scenario_pack": P, "scenario_id": S, "tier": TIER, "model": MODEL_ID|"mlx"}
+  for each agent A in selection
+  for each scenario S in packs(agent A)
+]
+```
+
+The manifest is serialized to `field/results/<timestamp>/manifest.json` for traceability. A stable sort order ensures deterministic chunking across resumes, even if partial artifacts exist.
+
+### Completion Records (Per-Case Index)
+
+Each executed case appends a record to `field/results/<timestamp>/index.jsonl` with keys:
+
+- `agent_id`, `scenario_pack`, `scenario_id`, `tier`, `model`
+- `status` in {`completed`, `error`, `timeout`, `skipped`}
+- `started_at`, `finished_at`, `duration_sec`
+- `run_artifact_path` (directory under `agents/<agent_id>/...`)
+
+The presence of a `completed` entry for an exact (agent_id, scenario_id, tier, model) tuple marks that case as done for resume purposes. `error` and `timeout` do not count as completed: they are eligible for retry on resume unless `--failed-only` is specified.
+
+### Resume Semantics
+
+- `--resume latest` uses the `field/results/latest` symlink.
+- `--resume <path>` uses an explicit previous run directory.
+- When resuming, the harness loads the prior `index.jsonl` and skips any manifest entries already marked `completed`.
+- `--failed-only` restricts the resume run to entries with a prior `error` or `timeout` status.
+- `--agents <a,b,c>` still applies: only cases for the selected agents are considered.
+- Model tiers are isolated: the key includes `(tier, model)`. A previous `local` run does not skip a new `cheap` run; previous `cheap` run with a different model ID does not skip the current one.
+
+### CLI Options (Runner Layer)
+
+Extend the local runner with serial execution to support:
+
+- `--resume latest | <path>`
+- `--failed-only`
+- `--agents <csv>` (already defined)
+- `--tier local|cheap|better|custom` (already defined)
+- `--model <id>` and `--key <OPENROUTER_KEY>` for cloud tiers (already defined)
+
+Examples:
+
+```
+# Resume the latest run, only pending/never-run cases
+bash scripts/field-run-local.sh --tier cheap --key "$OPENROUTER_API_KEY" --model openai/gpt-4o-mini --resume latest
+
+# Resume and run only failures from a prior run folder
+bash scripts/field-run-local.sh --tier better --key "$OPENROUTER_API_KEY" --model openai/gpt-4o --resume field/results/2026-08-05T10-00-00 --failed-only
+```
+
+### Artifact Expectations Per Case
+
+For each case, idempotent outputs live under `field/results/<ts>/agents/<agent_id>/<scenario_id>/` with file names that include `tier` and the `model` (or `mlx`) to avoid collisions across tiers:
+
+- `<scenario_id>__<tier>__<model_safe>.json` → normalized run artifact (status, I/O pointers)
+- `scores__<tier>__<model_safe>.json` → scorer outputs
+- `response__<tier>__<model_safe>.json` → LLM envelope (if persisted; secrets redacted)
+
+The `index.jsonl` references these.
+
+### Token-Safety and Caching
+
+- Resume never re-invokes LLMs for completed cases (case-level skip).
+- Optional request-level cache (future work): hash(prompt+tools+model) → response under `field/.llm_cache/` to dedupe across agents if content is identical (off by default; can be toggled later).
+- Retries maintain the same `tier/model` and note attempt numbers; prior failed attempts remain on disk for forensics.
+
+### Concurrency and Locks
+
+- Local runner is serial (`-n1`), minimizing complexity and avoiding racy writes.
+- A simple `RUNNING.lock` file under the results directory prevents accidental concurrent resumes targeting the same folder. When present, new runs refuse to write into that folder unless `--force` is added.
+
+### Summary Updates on Resume
+
+- `summary.json` is recomputed at the end of every run (fresh or resume) from `index.jsonl` and per-case artifacts.
+- `observations.md` appends a new section with the resume timestamp and a short delta summary (cases run, cases skipped, failures recovered).
+
+### Failure and Edge Cases
+
+- If `manifest.json` is missing, it is reconstructed from the current field configuration and scenarios, then filtered by the `index.jsonl` to determine skips.
+- If scenario packs change, the manifest hash changes; new scenarios are treated as pending and included in the resume run.
+- If an agent’s `field.json` pin changes, the runner emits a warning and treats cases as pending (re-run) unless `--use-previous-pin` is specified (future option).
+
 ### API Cost Constraints
 
 | Tier | Budget per Run | Budget per Month | Agents |
@@ -752,7 +928,7 @@ Flake tracking is stored in `field/flake_tracker.json`:
 - **Scenario packs for field tests avoid expensive LLM-dependent metrics** where possible, preferring deterministic scorers.
 - **Cached judge responses** (see §6) are reused within the same run to avoid redundant API calls.
 
-## 11. Implementation Plan
+## 12. Implementation Plan
 
 ### Phase 1: Scaffold (estimated 2 days)
 

@@ -31,3 +31,11 @@ htmlcov/
 .bandit
 .coverage
 .evalforge/
+
+# Field test caches and outputs (do not commit third-party repos or results)
+field/agents/
+field/results/
+field/.llm_cache/
+
+# Local docker test artifacts
+test-results/

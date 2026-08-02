@@ -28,9 +28,12 @@ from evalforge.security.sandbox import DockerConfig, run_in_container
 pytestmark = [
     pytest.mark.docker,
     pytest.mark.skipif(not shutil.which("docker"), reason="docker not available"),
+    # Docker isolation semantics differ on non-Linux hosts (e.g., macOS runs in a VM).
+    # Keep this Linux-only to match docs and CI job behavior, but allow developers
+    # to force-run locally for smoke checks via EVALFORGE_DOCKER_ALLOW_DARWIN=1.
     pytest.mark.skipif(
-        bool(os.environ.get("CI")) and platform.system() != "Linux",
-        reason="Docker isolation tests require Linux in CI",
+        platform.system() != "Linux" and os.environ.get("EVALFORGE_DOCKER_ALLOW_DARWIN") != "1",
+        reason="Docker isolation tests require Linux (set EVALFORGE_DOCKER_ALLOW_DARWIN=1 to force)",
     ),
 ]
 
@@ -50,10 +53,41 @@ def _docker_available() -> bool:
         return False
 
 
+def _docker_image_exists(image: str) -> bool:
+    """Return True if the given Docker image tag exists locally."""
+    try:
+        subprocess.run(
+            ["docker", "image", "inspect", image],
+            capture_output=True,
+            timeout=10,
+            check=True,
+        )
+        return True
+    except subprocess.CalledProcessError:
+        return False
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        return False
+
+
 @pytest.fixture(autouse=True)
 def require_docker() -> None:
     if not _docker_available():
         pytest.skip("Docker daemon is not running or not accessible")
+
+
+@pytest.fixture(autouse=True)
+def require_evalforge_image() -> None:
+    """Skip tests if the evalforge Docker image is not available locally.
+
+    This keeps the suite developer-friendly: if someone runs `pytest -m docker`
+    without first building the image, we skip with a clear message instead of
+    failing with a confusing Docker error.
+    """
+    image = os.environ.get("EVALFORGE_DOCKER_IMAGE", "evalforge-agent-runner")
+    if not _docker_image_exists(image):
+        pytest.skip(
+            f"Docker image '{image}' not found locally. Build it with: bash scripts/docker-test-setup.sh",
+        )
 
 
 class TestContainerExecution:
@@ -80,7 +114,20 @@ class TestContainerExecution:
         )
         # Connection should fail — network is blocked
         assert result.returncode != 0
-        assert "timeout" in result.stderr.lower() or "refused" in result.stderr.lower() or "error" in result.stderr.lower()
+        err = (result.stderr or "").lower()
+        # Accept a range of common failure messages across distros/kernels
+        indicators = [
+            "timeout",           # generic timeout text
+            "timed out",         # python socket timeout wording
+            "refused",           # connection refused
+            "unreachable",       # network is unreachable
+            "no route",          # no route to host
+            "denied",            # permission/network denied
+            "forbidden",         # rare but possible wording
+            "blocked",           # generic blocked wording
+            "network is unreachable",
+        ]
+        assert any(tok in err for tok in indicators), f"unexpected stderr: {result.stderr}"
 
     def test_readonly_filesystem(self) -> None:
         """Verify that --read-only prevents writes to the container filesystem."""

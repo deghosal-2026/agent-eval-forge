@@ -11,6 +11,9 @@ from __future__ import annotations
 import os
 import subprocess
 from dataclasses import dataclass, field
+import json
+import time
+import uuid
 
 # Minimal env vars allowed in sandbox mode
 SANDBOX_ALLOWLIST = {
@@ -104,10 +107,50 @@ def run_in_container(
     docker_args.append(config.image)
     docker_args.extend(agent_cmd)
 
-    return subprocess.run(  # noqa: S603
+    started_ts = time.time()
+    result = subprocess.run(  # noqa: S603
         docker_args,
         input=payload_str,
         capture_output=True,
         text=True,
         timeout=timeout,
     )
+    finished_ts = time.time()
+
+    # Optional logging of container interactions for test artifacts.
+    log_dir = os.environ.get("EVALFORGE_DOCKER_LOG_DIR")
+    if log_dir:
+        try:
+            os.makedirs(log_dir, exist_ok=True)
+            entry_dir = os.path.join(
+                log_dir,
+                f"run-{int(started_ts*1000)}-{os.getpid()}-{uuid.uuid4().hex[:8]}",
+            )
+            os.makedirs(entry_dir, exist_ok=True)
+            with open(os.path.join(entry_dir, "stdout.txt"), "w", encoding="utf-8") as f_out:
+                f_out.write(result.stdout or "")
+            with open(os.path.join(entry_dir, "stderr.txt"), "w", encoding="utf-8") as f_err:
+                f_err.write(result.stderr or "")
+            meta = {
+                "agent_cmd": agent_cmd,
+                "payload_len": len(payload_str or ""),
+                "docker_args": docker_args,
+                "returncode": result.returncode,
+                "started_ts": started_ts,
+                "finished_ts": finished_ts,
+                "duration_sec": finished_ts - started_ts,
+                "config": {
+                    "image": config.image,
+                    "network_disabled": config.network_disabled,
+                    "read_only_root": config.read_only_root,
+                    "memory_limit": config.memory_limit,
+                    "cpu_limit": config.cpu_limit,
+                },
+            }
+            with open(os.path.join(entry_dir, "meta.json"), "w", encoding="utf-8") as f_meta:
+                json.dump(meta, f_meta, indent=2)
+        except Exception:
+            # Logging should never break execution
+            pass
+
+    return result
