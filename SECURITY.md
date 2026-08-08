@@ -8,7 +8,7 @@
 
 ## Reporting a Vulnerability
 
-Do NOT open a public issue. Email the maintainers directly. Include:
+Do NOT open a public issue. Report vulnerabilities privately via GitHub's [private vulnerability reporting](https://github.com/deghosal-2026/agent-eval-forge/security/advisories/new) or email the maintainers directly at security@agent-eval-forge.dev. Include:
 
 - Description of the vulnerability
 - Steps to reproduce
