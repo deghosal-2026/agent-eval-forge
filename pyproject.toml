@@ -1,6 +1,6 @@
 [project]
 name = "agent-eval-forge"
-version = "0.1.0"
+version = "0.2.0"
 description = "A framework-agnostic evaluation harness for tool-using AI agents. Define scenario packs, run agents consistently, score outcomes and trajectories, and gate releases with evidence."
 readme = "README.md"
 requires-python = ">=3.11"
