@@ -11,7 +11,7 @@ pack:
   name: "my-pack"
   version: "1.0.0"
   description: "Custom validation pack"
-  min_evalforge: "0.1.0"
+  min_evalforge: "0.2.0"
 
 scenarios:
   - id: "my-scenario-01"

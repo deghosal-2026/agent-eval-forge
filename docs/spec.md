@@ -57,7 +57,7 @@ thresholds). Adapters always transmit a restricted payload:
 ```
 
 Notes:
-- `allowed_tools` are ToolSpec objects (name + description; schemas are optional in v0.1).
+- `allowed_tools` are ToolSpec objects (name + description; schemas are optional in v0.2).
 - `disallowed_tools` are included for clarity/audit, but are not a capability grant.
 - `expected`/`metrics` never leave EvalForge.
 
@@ -166,7 +166,7 @@ fields are used by EvalForge only and are never passed to the agent runtime.
 pack:
   name: "core-launch-pack"
   version: "1.0.0"
-  description: "Launch scenarios for EvalForge v0.1"
+  description: "Launch scenarios for EvalForge v0.2"
 
 scenarios:
   - id: "single-tool-retrieval-01"
@@ -417,7 +417,7 @@ run:
   error: null
 ```
 
-### TrajectoryStep Schema (v0.1)
+### TrajectoryStep Schema (v0.2)
 
 `trajectory.steps` is an ordered list of steps. Minimal fields by step type:
 
@@ -429,7 +429,7 @@ run:
 | `note` | `content` | |
 
 Notes:
-- Adapters may collapse `tool_call`+`tool_result` into a single step in v0.1.
+- Adapters may collapse `tool_call`+`tool_result` into a single step in v0.2.
 - Extra fields are allowed and ignored for forward compatibility.
 
 ### ExecutionTrace (v0.2.0)
@@ -606,7 +606,7 @@ comparison, reporting). It should include:
 - `scenario_ids` in execution order
 - relative paths to per-scenario artifact files
 
-## v0.1 Launch Pack — Scenario Definitions
+## v0.2 Launch Pack — Scenario Definitions
 
 ### 1. Single-Tool Factual Retrieval
 

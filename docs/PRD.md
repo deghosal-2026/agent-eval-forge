@@ -292,7 +292,7 @@ What EvalForge does **not** do in early versions:
 |---|---|
 | Replace runtime observability | EvalForge is for evaluation and regression discipline, not production tracing ownership |
 | Become a generic benchmark zoo | The focus is practical agent evaluation, not infinite leaderboard collection |
-| Auto-optimize prompts/models | EvalForge should diagnose and measure, not mutate systems automatically in v0.1 |
+| Auto-optimize prompts/models | EvalForge should diagnose and measure, not mutate systems automatically in v0.2 |
 | Claim broad commercial harness support | Support claims must be proven with working adapters |
 | Own every execution runtime | EvalForge should normalize artifacts from frameworks, not become another agent framework |
 
