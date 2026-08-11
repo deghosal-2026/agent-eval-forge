@@ -74,7 +74,7 @@ one job: deciding whether an agent change is safe to ship.
 |---|---|
 | A generic LLM eval framework | EvalForge goes deeper on scenario packs + trajectory/regression for agents |
 | A hosted observability platform | EvalForge is for evaluation and regression discipline, not production tracing ownership |
-| An auto-prompt optimizer | EvalForge diagnoses and measures — it does not mutate systems automatically in v0.1 |
+| An auto-prompt optimizer | EvalForge diagnoses and measures — it does not mutate systems automatically in v0.2 |
 | A benchmark leaderboard | The focus is practical agent evaluation, not infinite leaderboard collection |
 
 ---
@@ -118,7 +118,7 @@ eval in 5 minutes, all commands, and 12 real-world gotchas.
 
 ---
 
-## Launch Pack (v0.1)
+## Launch Pack (v0.2)
 
 20 scenarios across 10 families, plus 8 security scenarios:
 
@@ -144,11 +144,11 @@ All scenarios ship in `scenarios/core-launch.yaml` and `scenarios/security-launc
 
 | Adapter | Status | Agent spec |
 |---|---|---|
-| Subprocess | v0.1 | `subprocess:./agent.py` |
-| Python Import | v0.1 | `python:my_pkg.agent:run` |
-| HTTP | v0.1 | `http:http://localhost:8000/run` |
-| LangGraph | v0.1 | `langgraph:my_pkg.graph:build_agent` |
-| PydanticAI | v0.1 | `pydanticai:my_pkg.agent:build_agent` |
+| Subprocess | v0.1+ | `subprocess:./agent.py` |
+| Python Import | v0.1+ | `python:my_pkg.agent:run` |
+| HTTP | v0.1+ | `http:http://localhost:8000/run` |
+| LangGraph | v0.1+ | `langgraph:my_pkg.graph:build_agent` |
+| PydanticAI | v0.1+ | `pydanticai:my_pkg.agent:build_agent` |
 | CrewAI | v0.2 | `crewai:module:crew` |
 | OpenAI Agents SDK | v0.2 | `openai-agents:module:agent` |
 | smolagents | v0.2 | `smolagents:module:build_agent` |
@@ -201,17 +201,18 @@ See [Security Review (v0.2)](docs/0.2.0/security-review.md) for the current mode
 
 ## Field Testing
 
-EvalForge was validated against **19 real-world open-source agents** (11
-LangGraph + 8 PydanticAI) in v0.1.0. v0.2.0 adds 7 new adapter families
-(CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex, Claude Agent SDK,
-Google ADK) for a total of 12 supported frameworks.
+EvalForge was validated against **19 real-world open-source agents** across 8
+frameworks in v0.2.0. All 7 new adapter families (CrewAI, OpenAI Agents SDK,
+smolagents, AutoGen, LlamaIndex, Claude Agent SDK, Google ADK) passed field
+testing with full scoring.
 
 | Report | Scope |
 |---|---|
-| [Field Test Reports — 08.01](docs/0.1.0/field-test-report-08.01.2026.md) | Roster scaled from 8 to 20 agents |
-| [Field Test Report — 08.02.2026](docs/0.1.0/field-test-report-08.02.2026.md) | 19-agent compatibility sweep, cloud tier comparison |
-| [Field Test Plan](docs/testing/field-test-plan.md) | Agent selection, sourcing, config schema, acceptance criteria |
-| [Hard-Won Lessons](docs/hard-won-lessons.md) | Real-world integration and design lessons from 20+ agents |
+| [Field Test Results v0.2.0](docs/0.2.0/field-test-results-0.2.0.md) | 19-agent field sweep, all 8 frameworks |
+| [Field Test Plan](docs/testing/field-test-plan.md) | Agent selection, sourcing, config schema |
+| [Docker Test Results](docs/0.2.0/docker-test-results-0.2.0.md) | Container security + LLM integration |
+| [Integration Test Results](docs/0.2.0/integration-test-results-0.2.0.md) | 1,319 tests, 0 failures |
+| [Hard-Won Lessons](docs/hard-won-lessons.md) | Real-world integration and design lessons |
 
 ---
 
@@ -232,7 +233,7 @@ Google ADK) for a total of 12 supported frameworks.
 | M9.5 — Integration & Field Tests | ✅ |
 | M10 — Example Agents & DX | ✅ |
 | M11 — Scale-Up, Docker & CI | ✅ |
-| M12 — Ship v0.1.0 & Launch | ✅ |
+| M12 — Ship v0.2.0 & Launch | ✅ |
 | M0.2.0 — Bug fixes & small features | ✅ |
 
 See the [WBS (v0.2)](docs/0.2.0/wbs.md) for the full milestone plan with GitHub issue tracking.
@@ -246,21 +247,24 @@ See the [WBS (v0.2)](docs/0.2.0/wbs.md) for the full milestone plan with GitHub 
 | [User Guide](docs/user-guide.md) | **Start here** — installation, first eval, all commands, gotchas |
 | [PRD](docs/PRD.md) | Product requirements — the what and why, 20 canonical user journeys |
 | [Spec](docs/spec.md) | Technical specification — architecture, data model, scoring, all scenarios |
-| [WBS (v0.2)](docs/0.2.0/wbs.md) | Work breakdown — 36 issues across 3 phases |
-| [WBS (v0.1)](docs/0.1.0/wbs.md) | Work breakdown — 13 milestones, GitHub issues linked |
+| [WBS (v0.2)](docs/0.2.0/wbs.md) | Work breakdown — 38 issues across 3 phases |
+| [WBS (v0.1)](docs/0.1.0/wbs.md) | Work breakdown — 13 milestones (archive) |
 | [Architecture](docs/architecture.md) | Two-layer defense model — why EvalForge catches what judges miss |
 | [Scoring Comparison](docs/scoring-comparison.md) | Model-vs-deterministic scoring findings from JPS study |
 | [Scenarios](docs/scenarios.md) | Scenario authoring — pack anatomy, metric reference, adversarial scenarios |
 | [Scoring](docs/scoring.md) | Scoring — phantom_step, scoring breakdown, custom scorers |
 | [CI Integration](docs/ci.md) | GitHub Actions, GitLab CI, Docker sandbox, three-gate scoring |
 | [Security Review (v0.2)](docs/0.2.0/security-review.md) | Security model and hardening for v0.2.0 |
+| [Integration Test Results](docs/0.2.0/integration-test-results-0.2.0.md) | 1,319 tests, CI gate status |
+| [Docker Test Results](docs/0.2.0/docker-test-results-0.2.0.md) | Container security + LLM integration |
+| [Field Test Results](docs/0.2.0/field-test-results-0.2.0.md) | 19-agent field sweep across 8 frameworks |
 | [Adapters — LangGraph](docs/adapters/langgraph.md) | LangGraph adapter usage |
 | [Adapters — PydanticAI](docs/adapters/pydantic-ai.md) | PydanticAI adapter usage |
 | [Adapters — Custom](docs/adapters/custom.md) | How to write a custom adapter |
 | [External Benchmarks](docs/adapters/benchmarks.md) | SWE-bench, WebArena connectors |
-| [Security Review (v0.1)](docs/0.1.0/security-review.md) | Security model and hardening |
+| [Security Review (v0.1)](docs/0.1.0/security-review.md) | Security model — archive |
 | [Hard-Won Lessons](docs/hard-won-lessons.md) | Real-world lessons from 20+ agents |
-| [Field Test Reports](docs/0.1.0/field-test-report-08.02.2026.md) | Compatibility sweep across tiers |
+| [Field Test Reports (v0.1)](docs/0.1.0/field-test-report-08.02.2026.md) | Initial field sweep — archive |
 | [CHANGELOG](CHANGELOG.md) | Release history |
 | [CONTRIBUTING](CONTRIBUTING.md) | How to contribute |
 | [CODE OF CONDUCT](CODE_OF_CONDUCT.md) | Community standards |
