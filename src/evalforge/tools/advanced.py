@@ -224,7 +224,7 @@ class BudgetProfile:
         name: Human-readable profile name (e.g. ``"minimal"``).
         max_steps: Maximum allowed agent steps per scenario.
         max_cost_usd: Maximum allowed cost in USD per scenario.
-        success_threshold: Minimum pass rate required (0.0 – 1.0).
+        success_threshold: Minimum pass rate required (0.0 - 1.0).
     """
     name: str
     max_steps: int
@@ -865,7 +865,7 @@ class ABResult:
     Attributes:
         variant_a: Label for the baseline variant.
         variant_b: Label for the candidate variant.
-        improvement: Mean score difference (candidate − baseline).
+        improvement: Mean score difference (candidate - baseline).
         confidence: Qualitative confidence (``"low"``, ``"medium"``, ``"high"``).
         recommendation: Decision guidance.
     """

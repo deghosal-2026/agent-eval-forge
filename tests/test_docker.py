@@ -21,8 +21,8 @@ def _build_context() -> Path:
 
 
 def _run_container(*args: str) -> subprocess.CompletedProcess[str]:
-    return subprocess.run(
-        ["docker", "run", "--rm", DOCKER_IMAGE, *args],
+    return subprocess.run(  # noqa: S603
+        ["docker", "run", "--rm", DOCKER_IMAGE, *args],  # noqa: S607
         capture_output=True,
         text=True,
         timeout=60,
@@ -34,8 +34,8 @@ def docker_image() -> Generator[None, None, None]:
     if not _docker_available():
         pytest.skip("docker not available")
 
-    result = subprocess.run(
-        ["docker", "build", "-t", DOCKER_IMAGE, "-f", "Dockerfile", "."],
+    result = subprocess.run(  # noqa: S603
+        ["docker", "build", "-t", DOCKER_IMAGE, "-f", "Dockerfile", "."],  # noqa: S607
         cwd=_build_context(),
         capture_output=True,
         text=True,
@@ -46,8 +46,8 @@ def docker_image() -> Generator[None, None, None]:
 
     yield
 
-    subprocess.run(
-        ["docker", "rmi", "-f", DOCKER_IMAGE],
+    subprocess.run(  # noqa: S603
+        ["docker", "rmi", "-f", DOCKER_IMAGE],  # noqa: S607
         capture_output=True,
         timeout=30,
     )
@@ -74,11 +74,15 @@ def test_version(docker_image: None) -> None:
 @pytest.mark.skipif(not _docker_available(), reason="docker not available")
 def test_validate_pack(docker_image: None) -> None:
     result = _run_container("validate", "--pack", "scenarios/core-launch.yaml")
-    assert result.returncode == 0, f"validate failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    assert result.returncode == 0, (
+        f"validate failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )
     assert "scenarios" in result.stdout.lower()
 
 
 @pytest.mark.skipif(not _docker_available(), reason="docker not available")
 def test_validate_pack_strict(docker_image: None) -> None:
     result = _run_container("validate", "--pack", "scenarios/core-launch.yaml", "--strict")
-    assert result.returncode == 0, f"validate strict failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    assert result.returncode == 0, (
+        f"validate strict failed:\nstdout={result.stdout}\nstderr={result.stderr}"
+    )

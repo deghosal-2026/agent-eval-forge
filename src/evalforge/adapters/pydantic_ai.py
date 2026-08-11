@@ -91,7 +91,11 @@ class PydanticAIAdapter(Adapter):
             import inspect as _inspect
             # Treat non-function/class attributes as prebuilt agent instances
             # rather than calling them as factories.
-            if not (_inspect.isfunction(builder_any) or _inspect.ismethod(builder_any) or _inspect.isclass(builder_any)):
+            if not (
+                _inspect.isfunction(builder_any)
+                or _inspect.ismethod(builder_any)
+                or _inspect.isclass(builder_any)
+            ):
                 agent = builder_any
             else:
                 # If it's a callable factory, respect its signature; only pass
@@ -105,7 +109,11 @@ class PydanticAIAdapter(Adapter):
                         _inspect.Parameter.POSITIONAL_OR_KEYWORD,
                     )
                 ]
-                agent = builder_any(**kwargs) if not required else builder_any(payload, **kwargs)
+                callable_builder: _Any = builder_any
+                agent = (
+                    callable_builder(**kwargs) if not required
+                    else callable_builder(payload, **kwargs)
+                )
         except Exception as exc:
             raise AdapterError(f"build_agent failed: {exc}") from exc
 
@@ -128,9 +136,10 @@ class PydanticAIAdapter(Adapter):
 
         all_messages = result.all_messages() if hasattr(result, "all_messages") else []
         steps, final_content = _extract_trajectory(all_messages)
+        _ensure_tool_call_steps(steps)
 
         structured = getattr(result, "data", None)
-        if structured is not None and not isinstance(structured, str):
+        if structured is not None:
             final_content = final_content or str(structured)
 
         structured_output = structured if isinstance(structured, dict) else None
@@ -142,6 +151,25 @@ class PydanticAIAdapter(Adapter):
             "cost": _extract_cost(result),
             "error": None,
         }
+
+
+def _get_part_kind(part: Any) -> str:
+    """Extract the part kind string from a PydanticAI message part.
+
+    PydanticAI >= 0.20 uses ``part_kind`` (a string literal). Older versions
+    used ``kind`` (sometimes a callable). This helper handles both.
+    """
+    kind = getattr(part, "part_kind", None)
+    if kind is None:
+        kind_attr = getattr(part, "kind", "")
+        if callable(kind_attr):
+            try:
+                kind = kind_attr()
+            except Exception:
+                kind = ""
+        else:
+            kind = kind_attr
+    return str(kind) if kind else ""
 
 
 def _extract_trajectory(
@@ -170,22 +198,22 @@ def _extract_trajectory(
         if not parts:
             continue
         for part in parts:
-            kind = part.kind() if hasattr(part, "kind") else ""
-            if kind == "tool-call":
+            kind_str = _get_part_kind(part)
+            if kind_str in ("tool-call", "tool_call"):
                 steps.append({
                     "type": "tool_call",
                     "tool": getattr(part, "tool_name", ""),
                     "args": getattr(part, "args", {}),
                     "duration_ms": None,
                 })
-            elif kind == "tool-return":
+            elif kind_str in ("tool-return", "tool_return"):
                 steps.append({
                     "type": "tool_result",
                     "tool": getattr(part, "tool_name", ""),
                     "result": getattr(part, "content", None),
                     "duration_ms": None,
                 })
-            elif kind == "final":
+            elif kind_str in ("final", "return", "text"):
                 final_content = getattr(part, "content", "") or ""
 
     if final_content:
@@ -196,6 +224,29 @@ def _extract_trajectory(
         })
 
     return steps, final_content
+
+
+def _ensure_tool_call_steps(steps: list[dict[str, Any]]) -> None:
+    """Create synthetic tool_call steps for tool_result steps that lack a matching tool_call.
+
+    Some model paths (e.g. gpt-4o-mini via certain providers) may produce
+    ToolReturnPart messages without a corresponding ToolCallPart in
+    ``all_messages()``. This ensures the scoring engine still sees the tool
+    as having been called.
+    """
+    called = {s["tool"] for s in steps if s.get("type") == "tool_call"}
+    for i, step in enumerate(steps):
+        if step.get("type") != "tool_result":
+            continue
+        tool = step.get("tool", "")
+        if tool and tool not in called:
+            steps.insert(i, {
+                "type": "tool_call",
+                "tool": tool,
+                "args": {},
+                "duration_ms": None,
+            })
+            called.add(tool)
 
 
 def _extract_cost(result: Any) -> dict[str, Any] | None:

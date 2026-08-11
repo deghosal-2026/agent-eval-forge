@@ -115,15 +115,20 @@ def _pydantic_ai(payload: dict[str, Any], module: str, function: str, model: str
     steps: list[dict[str, Any]] = []
     for msg in result.all_messages() if hasattr(result, "all_messages") else []:
         for part in getattr(msg, "parts", []):
-            kind = part.kind() if hasattr(part, "kind") else ""
-            if kind == "tool-call":
+            kind_str = str(getattr(part, "part_kind", None) or getattr(part, "kind", "") or "")
+            if callable(kind_str):
+                try:
+                    kind_str = str(kind_str())
+                except Exception:
+                    kind_str = ""
+            if kind_str in ("tool-call", "tool_call"):
                 steps.append({"type": "tool_call", "tool": getattr(part, "tool_name", ""), "args": getattr(part, "args", {}), "duration_ms": None})
-            elif kind == "tool-return":
+            elif kind_str in ("tool-return", "tool_return"):
                 steps.append({"type": "tool_result", "tool": getattr(part, "tool_name", ""), "result": getattr(part, "content", None), "duration_ms": None})
-            elif kind == "final":
+            elif kind_str in ("final", "return", "text"):
                 final = getattr(part, "content", "") or final
     structured = getattr(result, "data", None)
-    if structured is not None and not isinstance(structured, str):
+    if structured is not None:
         final = final or str(structured)
     if final:
         steps.append({"type": "response", "content": final, "duration_ms": None})

@@ -44,6 +44,8 @@ class StepEfficiencyScorer(Scorer):
         total = len(artifact.trajectory or [])
         if max_steps is None or max_steps <= 0:
             score = 1.0
+        elif total == 0:
+            score = 0.0
         else:
             score = max(0.0, 1.0 - max(0, total - max_steps) / max_steps)
         threshold = metric_config.get("threshold", 0.7)

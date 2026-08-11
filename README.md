@@ -50,10 +50,11 @@ one job: deciding whether an agent change is safe to ship.
 | **Trajectory scoring** | Score the agent's path — not just the final answer. Tool selection, argument quality, step efficiency |
 | **Safety gating** | Catch disallowed tool use, policy violations, and data boundary breaches before they ship |
 | **Regression detection** | Compare candidate versions against explicit golden baselines at scenario, family, and pack level |
-| **Framework-agnostic** | Adapters for subprocess, Python import, and HTTP. Proven targets: LangGraph, PydanticAI |
+| **Framework-agnostic** | Adapters for subprocess, Python import, and HTTP. Proven targets: LangGraph, PydanticAI, CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex, Claude Agent SDK, Google ADK |
 | **CI-native** | Runs locally for developer decisions, in CI for enforcement. Structured exit codes for safety violations |
 | **Deterministic + LLM judge** | Cheap deterministic checks first, semantic LLM-as-judge only when needed |
 | **Security model** | Sandbox mode, trust policies, audit trail, API key sanitization |
+| **Two-layer defense** | EvalForge (Layer 2) catches integration failures that a judgment evaluator (Layer 1) cannot see — [read the architecture](docs/architecture.md) |
 | **20 launch scenarios** | Production-grade scenarios across 10 families, plus 8 security scenarios |
 | **External benchmarks** | SWE-bench and WebArena connectors |
 
@@ -87,10 +88,21 @@ pip install agent-eval-forge
 # With framework adapters and judge backends
 pip install agent-eval-forge[langgraph,pydanticai,judge]
 
+# Or install all adapter families
+pip install agent-eval-forge[all]
+
 # Run a scenario pack against your agent
 evalforge run \
   --pack scenarios/core-launch.yaml \
-  --agent python:my_agent.py \
+  --agent python:my_package.my_module:run \
+  --baseline v1.0.0 \
+  --judge openai:gpt-4o-mini
+
+# Override the default function name (default: "run")
+evalforge run \
+  --pack scenarios/core-launch.yaml \
+  --agent python:my_package.my_module \
+  --agent-function handle_request \
   --baseline v1.0.0 \
   --judge openai:gpt-4o-mini
 
@@ -137,7 +149,15 @@ All scenarios ship in `scenarios/core-launch.yaml` and `scenarios/security-launc
 | HTTP | v0.1 | `http:http://localhost:8000/run` |
 | LangGraph | v0.1 | `langgraph:my_pkg.graph:build_agent` |
 | PydanticAI | v0.1 | `pydanticai:my_pkg.agent:build_agent` |
-| CrewAI | v0.2+ | — |
+| CrewAI | v0.2 | `crewai:module:crew` |
+| OpenAI Agents SDK | v0.2 | `openai-agents:module:agent` |
+| smolagents | v0.2 | `smolagents:module:build_agent` |
+| AutoGen | v0.2 | `autogen:module:build_agent` |
+| LlamaIndex | v0.2 | `llamaindex:module:build_agent` |
+| Claude Agent SDK | v0.2 | `claude:module:build_agent` |
+| Google ADK | v0.2 | `adk:module:build_agent` |
+
+Install extras: `pip install evalforge[<family>]` or `pip install evalforge[all]` for all adapter families.
 
 ---
 
@@ -175,22 +195,21 @@ The security model includes:
 - **Audit trail** — per-run append-only log of policy decisions
 - **API key sanitization** — deep-redaction in artifacts and logs
 
-See [Security Review](docs/security-review.md) for the full model.
+See [Security Review (v0.2)](docs/0.2.0/security-review.md) for the current model.
 
 ---
 
 ## Field Testing
 
 EvalForge was validated against **19 real-world open-source agents** (11
-LangGraph + 8 PydanticAI) sourced from GitHub across local (MLX), cheap
-(gpt-4o-mini), and better (gpt-4o) tiers. The field harness exposed integration
-failures that mock-based testing completely missed — import-time side effects,
-hardcoded model names, Python version skew, and nested repo structures.
+LangGraph + 8 PydanticAI) in v0.1.0. v0.2.0 adds 7 new adapter families
+(CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex, Claude Agent SDK,
+Google ADK) for a total of 12 supported frameworks.
 
 | Report | Scope |
 |---|---|
-| [Field Test Report — 08.01.2026](docs/field-test-report-08.01.2026.md) | Roster scaled from 8 to 20 agents |
-| [Field Test Report — 08.02.2026](docs/field-test-report-08.02.2026.md) | 19-agent compatibility sweep, cloud tier comparison |
+| [Field Test Reports — 08.01](docs/0.1.0/field-test-report-08.01.2026.md) | Roster scaled from 8 to 20 agents |
+| [Field Test Report — 08.02.2026](docs/0.1.0/field-test-report-08.02.2026.md) | 19-agent compatibility sweep, cloud tier comparison |
 | [Field Test Plan](docs/testing/field-test-plan.md) | Agent selection, sourcing, config schema, acceptance criteria |
 | [Hard-Won Lessons](docs/hard-won-lessons.md) | Real-world integration and design lessons from 20+ agents |
 
@@ -214,8 +233,9 @@ hardcoded model names, Python version skew, and nested repo structures.
 | M10 — Example Agents & DX | ✅ |
 | M11 — Scale-Up, Docker & CI | ✅ |
 | M12 — Ship v0.1.0 & Launch | ✅ |
+| M0.2.0 — Bug fixes & small features | ✅ |
 
-See the [WBS](docs/wbs.md) for the full milestone plan with GitHub issue tracking.
+See the [WBS (v0.2)](docs/0.2.0/wbs.md) for the full milestone plan with GitHub issue tracking.
 
 ---
 
@@ -226,17 +246,21 @@ See the [WBS](docs/wbs.md) for the full milestone plan with GitHub issue trackin
 | [User Guide](docs/user-guide.md) | **Start here** — installation, first eval, all commands, gotchas |
 | [PRD](docs/PRD.md) | Product requirements — the what and why, 20 canonical user journeys |
 | [Spec](docs/spec.md) | Technical specification — architecture, data model, scoring, all scenarios |
-| [WBS](docs/wbs.md) | Work breakdown — 13 milestones, GitHub issues linked |
-| [Scenarios](docs/scenarios.md) | Scenario authoring — pack anatomy, metric reference |
-| [Scoring](docs/scoring.md) | Scoring — metric categories, custom scorers, failure taxonomy |
-| [CI Integration](docs/ci.md) | GitHub Actions, GitLab CI, Docker sandbox |
+| [WBS (v0.2)](docs/0.2.0/wbs.md) | Work breakdown — 36 issues across 3 phases |
+| [WBS (v0.1)](docs/0.1.0/wbs.md) | Work breakdown — 13 milestones, GitHub issues linked |
+| [Architecture](docs/architecture.md) | Two-layer defense model — why EvalForge catches what judges miss |
+| [Scoring Comparison](docs/scoring-comparison.md) | Model-vs-deterministic scoring findings from JPS study |
+| [Scenarios](docs/scenarios.md) | Scenario authoring — pack anatomy, metric reference, adversarial scenarios |
+| [Scoring](docs/scoring.md) | Scoring — phantom_step, scoring breakdown, custom scorers |
+| [CI Integration](docs/ci.md) | GitHub Actions, GitLab CI, Docker sandbox, three-gate scoring |
+| [Security Review (v0.2)](docs/0.2.0/security-review.md) | Security model and hardening for v0.2.0 |
 | [Adapters — LangGraph](docs/adapters/langgraph.md) | LangGraph adapter usage |
 | [Adapters — PydanticAI](docs/adapters/pydantic-ai.md) | PydanticAI adapter usage |
 | [Adapters — Custom](docs/adapters/custom.md) | How to write a custom adapter |
 | [External Benchmarks](docs/adapters/benchmarks.md) | SWE-bench, WebArena connectors |
-| [Security Review](docs/security-review.md) | Security model and hardening |
+| [Security Review (v0.1)](docs/0.1.0/security-review.md) | Security model and hardening |
 | [Hard-Won Lessons](docs/hard-won-lessons.md) | Real-world lessons from 20+ agents |
-| [Field Test Reports](docs/field-test-report-08.02.2026.md) | Compatibility sweep across tiers |
+| [Field Test Reports](docs/0.1.0/field-test-report-08.02.2026.md) | Compatibility sweep across tiers |
 | [CHANGELOG](CHANGELOG.md) | Release history |
 | [CONTRIBUTING](CONTRIBUTING.md) | How to contribute |
 | [CODE OF CONDUCT](CODE_OF_CONDUCT.md) | Community standards |

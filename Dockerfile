@@ -58,6 +58,5 @@ LABEL org.opencontainers.image.title="EvalForge" \
       org.opencontainers.image.vendor="deghosal-2026"
 
 USER evalforge
-
 ENTRYPOINT ["evalforge"]
 CMD ["--help"]

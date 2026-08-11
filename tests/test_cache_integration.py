@@ -138,7 +138,7 @@ def test_schema_cache_clears_on_content_change(tmp_path: Path) -> None:
                 "allowed_tools": [{"name": "a"}],
                 "budget": {"max_steps": 5},
                 "expected": {"type": "exact", "value": "ok"},
-                "metrics": {"exact_match": {"threshold": 1.0}},
+                "metrics": {"task_completion": {"threshold": 1.0}},
             },
         ],
     }

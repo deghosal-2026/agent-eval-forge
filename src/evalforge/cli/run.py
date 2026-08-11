@@ -22,11 +22,17 @@ from __future__ import annotations
 import json
 import os
 from pathlib import Path
+from typing import Any
 
 import click
 
 from evalforge.cli.util import parse_agent_spec
+from evalforge.models.manifest import collect_host_info
 from evalforge.scoring.judge.client import JudgeClient
+
+
+def _execution_environment() -> dict[str, str]:
+    return collect_host_info()
 
 
 def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
@@ -119,6 +125,11 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     required=True,
     help="Agent spec (e.g. 'python:my_module.run' or './my_agent' for subprocess)",
 )
+@click.option(
+    "--agent-function",
+    default=None,
+    help="Override function name for Python-import adapters (default: 'run')",
+)
 @click.option("--baseline", default=None, help="Optional baseline name for regression comparison")
 @click.option("--judge", default=None, help="Judge spec (e.g. 'openai:gpt-4o-mini' or 'mock')")
 @click.option(
@@ -127,7 +138,7 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
 )
 @click.option(
     "--output-format",
-    type=click.Choice(["json", "markdown", "terminal", "html"]),
+    type=click.Choice(["json", "markdown", "terminal", "html", "github-actions"]),
     default="json",
     show_default=True,
     help="Output format for the run report",
@@ -205,6 +216,12 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     help="Set a deterministic seed for reproducible evaluation runs",
 )
 @click.option(
+    "--model",
+    default=None,
+    help="Explicitly declare the agent model name (e.g. 'gpt-4o', 'claude-3-opus'). "
+    "Overrides model detection from the agent config.",
+)
+@click.option(
     "--explain-policy",
     is_flag=True,
     help="Explain why the current adapter/trust combo is or isn't allowed",
@@ -215,9 +232,27 @@ def _resolve_judge(judge_spec: str | None) -> JudgeClient | None:
     type=click.Path(dir_okay=False, writable=True),
     help="Export metrics to the given JSON file path",
 )
+@click.option(
+    "--no-manifest",
+    is_flag=True,
+    help="Skip emitting run-manifest.json (saves ~100ms, useful in CI)",
+)
+@click.option(
+    "--fail-on",
+    type=click.Choice(["compatibility", "safety", "quality", "all"]),
+    default=None,
+    help="Fail (non-zero exit) if the given score dimension drops below threshold (0.8)",
+)
+@click.option(
+    "--fail-on-divergence",
+    type=click.Choice(["critical", "warning", "all"]),
+    default=None,
+    help="Exit non-zero when divergences between deterministic and LLM judge exist",
+)
 def run(
     pack: str,
     agent: str,
+    agent_function: str | None,
     baseline: str | None,
     judge: str | None,
     output: str,
@@ -236,9 +271,13 @@ def run(
     max_outstanding: int | None = None,
     compare_mode: str = "rescore",
     explain_policy: bool = False,
-    container_runtime: str | None = None,
+container_runtime: str | None = None,
+    no_manifest: bool = False,
     seed: int | None = None,
+    model: str | None = None,
     telemetry: str | None = None,
+    fail_on: str | None = None,
+    fail_on_divergence: str | None = None,
 ) -> None:
     """Run a scenario pack against an agent, score results, and optionally compare.
 
@@ -296,6 +335,8 @@ def run(
     # Parse the agent spec and extend with CLI-level overrides
     agent_config = parse_agent_spec(agent)
     agent_config["timeout_seconds"] = timeout
+    if agent_function:
+        agent_config["function"] = agent_function
     if fixtures is not None:
         agent_config["fixtures"] = fixtures
     if live is not None:
@@ -303,6 +344,10 @@ def run(
     agent_config["fixtures_dir"] = fixtures_dir
     agent_config["sandbox"] = sandbox
     agent_config["container_runtime"] = container_runtime
+    if model:
+        # Explicitly declare the model so it is recorded in the run artifacts'
+        # agent metadata and surfaced in baseline comparison (see #255).
+        agent_config["model"] = model
 
     # Parse the optional tag filter
     tag_list = tags.split(",") if tags else None
@@ -354,7 +399,8 @@ def run(
 
     start_ms = int(time.time() * 1000)
     artifacts = runner.run_all(
-        tags=tag_list, run_id=run_id, workers=workers, max_outstanding=max_outstanding
+        tags=tag_list, run_id=run_id, workers=workers, max_outstanding=max_outstanding,
+        emit_manifest=not no_manifest,
     )
     duration_ms = int(time.time() * 1000) - start_ms
 
@@ -373,6 +419,7 @@ def run(
         "run_id": run_id,
         "pack_name": pack_meta.name,
         "pack_version": pack_meta.version,
+        "execution_environment": _execution_environment(),
         "total_scenarios": (
             run_score.totals["passed"]
             + run_score.totals["warned"]
@@ -384,6 +431,7 @@ def run(
         "exit_code": run_score.exit_code,
         "duration_ms": duration_ms,
         "safety_violations": run_score.safety_violations,
+        "dimensions": run_score.dimensions,
         "scenario_scores": {
             sid: {
                 "status": ss.status,
@@ -405,6 +453,58 @@ def run(
     }
 
     result["cache_stats"] = engine.cache_stats if not no_cache else {}
+
+    # Build scoring_breakdown: deterministic, llm_judge, and divergences
+    scoring_det: list[dict[str, Any]] = []
+    scoring_judge: list[dict[str, Any]] = []
+    divergences: list[dict[str, Any]] = []
+
+    for sid, ss in run_score.scenario_scores.items():
+        det_has_pass = False
+        det_has_fail = False
+        judge_has_pass = False
+        judge_has_fail = False
+        for mname, mr in ss.metric_results.items():
+            entry: dict[str, Any] = {
+                "metric": mname,
+                "score": mr.score,
+                "threshold": mr.threshold,
+                "passed": mr.passed,
+                "scenario_id": sid,
+            }
+            if mr.source == "deterministic":
+                scoring_det.append(entry)
+                if mr.passed is True:
+                    det_has_pass = True
+                elif mr.passed is False:
+                    det_has_fail = True
+            elif mr.source == "judge":
+                entry["rationale"] = mr.detail.get("rationale", "")
+                scoring_judge.append(entry)
+                if mr.passed is True:
+                    judge_has_pass = True
+                elif mr.passed is False:
+                    judge_has_fail = True
+
+        # Classify per-scenario divergences
+        if det_has_fail and judge_has_pass:
+            divergences.append({
+                "scenario_id": sid,
+                "type": "critical",
+                "detail": "Deterministic check(s) failed but LLM judge passed",
+            })
+        if det_has_pass and judge_has_fail:
+            divergences.append({
+                "scenario_id": sid,
+                "type": "warning",
+                "detail": "Deterministic check(s) passed but LLM judge failed",
+            })
+
+    result["scoring_breakdown"] = {
+        "deterministic": scoring_det,
+        "llm_judge": scoring_judge,
+        "divergences": divergences,
+    }
 
     # Step 5 (optional): Compare against a saved baseline
     if baseline:
@@ -536,14 +636,76 @@ def run(
 
     # Summary to stdout
     if not quiet:
+        env = _execution_environment()
         click.echo(f"Run complete: {run_id}")
         click.echo(
             f"  Passed: {run_score.totals['passed']},"
             f" Warned: {run_score.totals['warned']},"
             f" Failed: {run_score.totals['failed']}"
         )
+        if run_score.dimensions:
+            dims = run_score.dimensions
+            click.echo(
+                f"  Dimensions: compatibility={dims.get('compatibility', 'N/A'):.2f},"
+                f" safety={dims.get('safety', 'N/A'):.2f},"
+                f" quality={dims.get('quality', 'N/A'):.2f}"
+            )
         click.echo(f"  Exit code: {run_score.exit_code}")
+        click.echo(f"  Environment: {env['os']} / {env['arch']} / Python {env['python']}")
         if run_score.safety_violations:
             click.echo(
                 f"  Safety violations: {', '.join(run_score.safety_violations)}"
             )
+        det_passed = sum(1 for d in scoring_det if d.get("passed") is True)
+        det_total = len(scoring_det)
+        judge_passed = sum(1 for d in scoring_judge if d.get("passed") is True)
+        judge_total = len(scoring_judge)
+        crit_divs = sum(1 for d in divergences if d["type"] == "critical")
+        warn_divs = sum(1 for d in divergences if d["type"] == "warning")
+        click.echo(
+            f"  Score: {run_score.exit_code} |"
+            f" Deterministic: {det_passed}/{det_total} |"
+            f" LLM Judge: {judge_passed}/{judge_total} |"
+            f" Divergences: {crit_divs} critical, {warn_divs} warning"
+        )
+
+    # --fail-on gating: non-zero exit if a dimension is below threshold (0.8)
+    _FAIL_THRESHOLD = 0.8
+    if fail_on:
+        dims = run_score.dimensions
+        targets = ["compatibility", "safety", "quality"] if fail_on == "all" else [fail_on]
+        for dim in targets:
+            if dim in dims and dims[dim] < _FAIL_THRESHOLD:
+                click.echo(
+                    f"Dimension '{dim}' score {dims[dim]:.2f} below threshold {_FAIL_THRESHOLD}",
+                    err=True,
+                )
+                raise SystemExit(1)
+
+    # --fail-on-divergence gating: non-zero exit when divergences exist
+    if fail_on_divergence:
+        divs = divergences
+        if fail_on_divergence == "critical":
+            critical_divs = [d for d in divs if d["type"] == "critical"]
+            if critical_divs:
+                click.echo(
+                    f"Critical divergences detected: {len(critical_divs)}",
+                    err=True,
+                )
+                raise SystemExit(5)
+        elif fail_on_divergence == "warning":
+            warning_divs = [d for d in divs if d["type"] == "warning"]
+            if warning_divs:
+                click.echo(
+                    f"Warning divergences detected: {len(warning_divs)}",
+                    err=True,
+                )
+                raise SystemExit(5)
+        elif fail_on_divergence == "all" and divs:
+            click.echo(
+                f"Divergences detected: {len(divs)}",
+                err=True,
+            )
+            raise SystemExit(5)
+
+    raise SystemExit(run_score.exit_code)

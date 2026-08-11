@@ -57,7 +57,7 @@ def _omlx_available_host() -> bool:
 @pytest.fixture(autouse=True)
 def require_docker() -> None:
     try:
-        subprocess.run(["docker", "info"], capture_output=True, timeout=10, check=True)  # noqa: S603, S607
+        subprocess.run(["docker", "info"], capture_output=True, timeout=10, check=True)  # noqa: S607
     except Exception:
         pytest.fail("Docker daemon is not running — start Docker Desktop and retry")
 
@@ -105,8 +105,8 @@ def test_omlx_chat_completion_in_container() -> None:
         add_host_gateway=True,
     )
 
-    # Use the project virtualenv interpreter where httpx is installed
-    result = run_in_container(["/app/.venv/bin/python", "-c", py], "", cfg, timeout=45.0)
+    # Use the system Python (Dockerfile installs deps with `uv pip install --system`).
+    result = run_in_container(["python", "-c", py], "", cfg, timeout=45.0)
     assert result.returncode == 0, (
         f"container exited {result.returncode}\nstderr: {result.stderr}"
     )

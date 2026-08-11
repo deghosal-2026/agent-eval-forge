@@ -92,7 +92,7 @@ def test_full_agent_has_run_function(tmp_path: Path) -> None:
 
 def test_force_overwrites_existing(tmp_path: Path) -> None:
     # First, create with minimal template
-    code, out = _invoke("init", str(tmp_path))
+    code, _out = _invoke("init", str(tmp_path))
     assert code == 0
 
     toml_path = tmp_path / "evalforge.toml"
@@ -103,7 +103,7 @@ def test_force_overwrites_existing(tmp_path: Path) -> None:
     assert toml_path.read_text() == "# changed content"
 
     # Re-run with --force
-    code, out = _invoke("init", str(tmp_path), "--force")
+    code, _out = _invoke("init", str(tmp_path), "--force")
     assert code == 0
 
     # File should be back to the original template content
@@ -113,7 +113,7 @@ def test_force_overwrites_existing(tmp_path: Path) -> None:
 def test_minimal_pack_is_valid_yaml(tmp_path: Path) -> None:
     import yaml  # type: ignore[import-untyped]
 
-    code, out = _invoke("init", str(tmp_path))
+    code, _out = _invoke("init", str(tmp_path))
     assert code == 0
 
     pack_path = tmp_path / "scenarios" / "my-scenarios.yaml"
@@ -143,7 +143,7 @@ def test_default_path_is_cwd(tmp_path: Path) -> None:
     cwd = os.getcwd()
     try:
         os.chdir(tmp_path)
-        code, out = _invoke("init")
+        code, _out = _invoke("init")
         assert code == 0
         assert (tmp_path / "evalforge.toml").exists()
     finally:

@@ -10,7 +10,7 @@ Defines the dataclasses that carry scoring output through the pipeline:
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 
 
 @dataclass
@@ -71,11 +71,15 @@ class RunScore:
         safety_violations: Union of all safety violations across scenarios.
         exit_code: Process exit code — 0 (all passed), 1 (failures), 3 (judge
             errors), 4 (safety violation).
+        dimensions: Three independent score dimensions computed across all
+            scenarios: ``compatibility``, ``safety``, and ``quality``, each in
+            [0.0, 1.0]. Added by ``ScoringEngine._compute_dimensions()``.
     """
     scenario_scores: dict[str, ScenarioScore]
     totals: dict[str, int]  # {"passed": int, "warned": int, "failed": int}
     safety_violations: list[str]
     exit_code: int  # 0 | 1 | 2 | 3 | 4
+    dimensions: dict[str, float] = field(default_factory=dict)
 
 
 @dataclass

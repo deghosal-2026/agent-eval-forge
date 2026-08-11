@@ -13,7 +13,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 
 from evalforge.models.pack import (
     Budget,
@@ -347,7 +347,11 @@ class BenchmarkLoader:
             etype = "exact"
 
         if etype == "exact":
-            value = expected.get("value") or task.reference_output or expected.get("reference_answer", "")
+            value = (
+                expected.get("value")
+                or task.reference_output
+                or expected.get("reference_answer", "")
+            )
             return Expected(type="exact", value=str(value))
 
         if etype == "schema":

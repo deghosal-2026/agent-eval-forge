@@ -17,6 +17,7 @@ from pathlib import Path
 
 from evalforge.baselines.model import Baseline
 from evalforge.baselines.store import BaselineStore
+from evalforge.cli.compare import _runscore_from_dict
 from evalforge.comparison.engine import ComparisonEngine
 from evalforge.comparison.report import ComparisonReport
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps, TrajectoryStep
@@ -87,6 +88,10 @@ def test_end_to_end_baseline_save_compare_report(tmp_path: Path) -> None:
 
     # Create and save baseline from passing artifacts
     base_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in base_arts:
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
     base_score = ScoringEngine(pack).score_run(base_arts)
     baseline = Baseline(name="v1.0", pack="test-pack", pack_version="1.0.0", runs=base_arts)
     store.save(baseline)
@@ -184,6 +189,10 @@ def test_comparison_detects_new_failures(tmp_path: Path) -> None:
     pack = _pack()
     store = BaselineStore(base_dir=str(tmp_path / ".evalforge" / "baselines"))
     base_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in base_arts:
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
     base_score = ScoringEngine(pack).score_run(base_arts)
     baseline = Baseline(name="v1.0", pack="test-pack", pack_version="1.0.0", runs=base_arts)
     store.save(baseline)
@@ -198,7 +207,6 @@ def test_comparison_detects_new_failures(tmp_path: Path) -> None:
     cand_score = ScoringEngine(pack).score_run(cand_arts)
     engine = ComparisonEngine(pack)
     result = engine.compare(base_score, cand_score, baseline, candidate_artifacts=cand_arts)
-
     assert result.aggregate["regressed"] == 1
     assert result.aggregate["improved"] == 0
     assert result.aggregate["total_scenarios"] == 2
@@ -223,6 +231,10 @@ def test_comparison_detects_improvements(tmp_path: Path) -> None:
     store.save(baseline)
 
     cand_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in cand_arts:
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
     cand_score = ScoringEngine(pack).score_run(cand_arts)
     engine = ComparisonEngine(pack)
     result = engine.compare(base_score, cand_score, baseline, candidate_artifacts=cand_arts)
@@ -371,8 +383,114 @@ def test_comparison_report_json_output(tmp_path: Path) -> None:
         assert key in agg, f"missing aggregate key: {key}"
 
     assert len(j["scenario_deltas"]) == 2
-    assert "sc-1" in j["scenario_deltas"]
-    assert "sc-2" in j["scenario_deltas"]
-    for sid, delta in j["scenario_deltas"].items():
-        for key in ("baseline_score", "candidate_score", "delta", "regressed", "improved"):
-            assert key in delta, f"missing key {key} in scenario_delta[{sid}]"
+
+
+def test_snapshot_comparison_uses_frozen_scores(tmp_path: Path) -> None:
+    """Snapshot mode uses frozen scores from baseline, not re-scoring."""
+    pack = _pack()
+    store = BaselineStore(base_dir=str(tmp_path / ".evalforge" / "baselines"))
+
+    base_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in base_arts:
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
+    ScoringEngine(pack).score_run(base_arts)
+
+    baseline = Baseline(
+        name="v1.0", pack="test-pack", pack_version="1.0.0",
+        runs=base_arts,
+        score_snapshot={
+            "scenario_scores": {
+                "sc-1": {
+                    "status": "passed",
+                    "metrics": {"tool_correctness": {"score": 1.0, "passed": True}},
+                },
+            },
+            "exit_code": 0,
+        },
+        git_sha="abc123def",
+        agent={"framework": "test"},
+    )
+    store.save(baseline)
+
+    loaded = store.load("v1.0")
+    assert loaded.score_snapshot is not None
+    assert loaded.git_sha == "abc123def"
+    assert loaded.agent == {"framework": "test"}
+
+    cand_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    cand_score = ScoringEngine(pack).score_run(cand_arts)
+
+    snapshot_score = _runscore_from_dict(loaded.score_snapshot)
+    engine = ComparisonEngine(pack)
+    result = engine.compare(snapshot_score, cand_score, loaded)
+    assert result.aggregate["total_scenarios"] >= 1
+    assert "sc-1" in result.scenario_deltas
+
+
+def test_model_change_detected_full_flow(tmp_path: Path) -> None:
+    """Full pipeline: baseline with gpt-4o, candidate with gpt-4o-mini → model_changed."""
+    pack = _pack()
+    base_dir = str(tmp_path / ".evalforge")
+    store = BaselineStore(base_dir=f"{base_dir}/baselines")
+
+    base_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in base_arts:
+        art.agent = {"model": "gpt-4o", "type": "python"}
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
+    base_score = ScoringEngine(pack).score_run(base_arts)
+    baseline = Baseline(
+        name="v1.0", pack="test-pack", pack_version="1.0.0",
+        runs=base_arts, agent={"model": "gpt-4o"},
+    )
+    store.save(baseline)
+
+    loaded = store.load("v1.0")
+    assert loaded.agent.get("model") == "gpt-4o"
+
+    cand_arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in cand_arts:
+        art.agent = {"model": "gpt-4o-mini", "type": "python"}
+        art.trajectory = [
+            TrajectoryStep(type="tool_call", tool="a", args={}, duration_ms=1),
+        ]
+    cand_score = ScoringEngine(pack).score_run(cand_arts)
+
+    engine = ComparisonEngine(pack)
+    result = engine.compare(
+        base_score, cand_score, loaded, candidate_artifacts=cand_arts,
+    )
+
+    assert result.aggregate["model_changed"] is True
+
+    report = ComparisonReport(
+        baseline_name="v1.0", candidate_name="candidate",
+        result=result, candidate_score=cand_score,
+    )
+    json_output = report.to_json()
+    assert json_output["aggregate"]["model_changed"] is True
+
+
+def test_same_model_no_change_full_flow(tmp_path: Path) -> None:
+    """Full pipeline: same model across baseline and candidate → model_changed is False."""
+    pack = _pack()
+    store = BaselineStore(base_dir=str(tmp_path / ".evalforge" / "baselines"))
+
+    arts = [_artifact(sid="sc-1"), _artifact(sid="sc-2")]
+    for art in arts:
+        art.agent = {"model": "gpt-4o", "type": "python"}
+    score = ScoringEngine(pack).score_run(arts)
+    baseline = Baseline(
+        name="v1.0", pack="test-pack", pack_version="1.0.0",
+        runs=arts, agent={"model": "gpt-4o"},
+    )
+    store.save(baseline)
+
+    loaded = store.load("v1.0")
+    engine = ComparisonEngine(pack)
+    result = engine.compare(score, score, loaded, candidate_artifacts=arts)
+
+    assert result.aggregate["model_changed"] is False

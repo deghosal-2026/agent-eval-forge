@@ -8,6 +8,8 @@ can be resolved to launch-pack names (e.g. ``"tool_correctness"``).
 
 from __future__ import annotations
 
+from typing import Any
+
 from evalforge.models.errors import ConfigError
 from evalforge.scoring.base import Scorer
 
@@ -18,7 +20,6 @@ SCORERS: dict[str, type[Scorer]] = {}
 # Spec catalog name → launch-pack name. Aliases let get_scorer resolve
 # catalog names (e.g. "schema_valid" → "schema_validity").
 ALIASES: dict[str, str] = {
-    "exact_match": "tool_correctness",
     "schema_valid": "schema_validity",
     "field_presence": "field_correctness",
     "tool_not_called": "zero_disallowed_actions",
@@ -28,6 +29,8 @@ ALIASES: dict[str, str] = {
     "policy_adherence": "task_completion",
     "retry_discipline": "output_correctness",
 }
+
+_plugin_manager: Any | None = None
 
 
 def register_scorer(cls: type[Scorer]) -> type[Scorer]:
@@ -58,7 +61,7 @@ def get_scorer(name: str) -> type[Scorer] | None:
     """Look up a Scorer class by name or alias.
 
     Checks the SCORERS registry first, then falls back to alias resolution
-    via ALIASES.
+    via ALIASES, then checks PluginManager for externally registered scorers.
 
     Args:
         name: The metric name (e.g. ``"tool_correctness"``) or catalog alias
@@ -72,8 +75,39 @@ def get_scorer(name: str) -> type[Scorer] | None:
     alias = ALIASES.get(name)
     if alias:
         return SCORERS.get(alias)
+    plugin = _get_plugin_scorer(name)
+    if plugin is not None:
+        return plugin
     return None
 
 
+def _get_plugin_manager() -> Any:
+    """Return the shared PluginManager instance (lazily initialized).
+
+    This module maintains a single PluginManager instance so that
+    externally registered (plugin) scorers are visible to every call
+    to :func:`get_scorer`.
+    """
+    global _plugin_manager
+    if _plugin_manager is None:
+        from evalforge.plugins.manager import PluginManager
+
+        _plugin_manager = PluginManager()
+    return _plugin_manager
+
+
+def _get_plugin_scorer(name: str) -> type[Scorer] | None:
+    """Try to resolve a scorer from the PluginManager.
+
+    Args:
+        name: The metric name to look up.
+
+    Returns:
+        A scorer class from the plugin registry, or None.
+    """
+    return _get_plugin_manager().registry.get_scorer(name)  # type: ignore[no-any-return]
+
+
 def discover_entry_points() -> None:
-    """Discover externally registered scorers via entry points. No-op in M2."""
+    """Discover externally registered scorers via entry points."""
+    _get_plugin_manager().discover_entry_points()

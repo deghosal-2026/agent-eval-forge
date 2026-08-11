@@ -52,7 +52,7 @@ from evalforge.cli.util import parse_agent_spec
 )
 @click.option(
     "--output-format",
-    type=click.Choice(["json", "markdown", "terminal"]),
+    type=click.Choice(["json", "markdown", "terminal", "github-actions"]),
     default="terminal",
     show_default=True,
 )

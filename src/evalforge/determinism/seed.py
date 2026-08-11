@@ -57,7 +57,7 @@ class SeedManager:
         except ImportError:
             pass
         try:
-            import torch
+            import torch  # type: ignore[import-not-found]
             torch.manual_seed(self._seed)
         except ImportError:
             pass

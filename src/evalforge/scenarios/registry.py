@@ -6,10 +6,7 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 
-try:
-    import yaml  # type: ignore[import-untyped]
-except ImportError:
-    yaml = None
+import yaml
 
 
 @dataclass

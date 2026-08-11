@@ -25,10 +25,12 @@ Exports:
 
 from __future__ import annotations
 
+import importlib.metadata
 import multiprocessing
 from typing import Any
 
 from evalforge.adapters.base import Adapter, _inject_fixtures, parse_agent_stdout
+from evalforge.models.adapter_manifest import AdapterManifest
 from evalforge.models.errors import AdapterError, AgentTimeoutError
 
 
@@ -39,6 +41,10 @@ def _agent_worker(module: str, function: str, payload: dict[str, Any], queue: An
     the specified module, calls the specified function with the payload, and
     puts a ``("ok", result)`` or ``("error", message)`` tuple on the queue.
 
+    When ``_fixture_mode`` is True in the payload, a :class:`ToolStub` is
+    constructed and attached to ``payload["_tool_stub"]`` so the agent can
+    use deterministic fixtures instead of live tool calls.
+
     Args:
         module: The Python module to import.
         function: The function name to call within the module.
@@ -48,6 +54,12 @@ def _agent_worker(module: str, function: str, payload: dict[str, Any], queue: An
     import importlib
 
     try:
+        if payload.get("_fixture_mode"):
+            from evalforge.fixtures import ToolStub
+
+            fixture_dir = payload.get("_fixtures_dir", "scenarios/fixtures")
+            tool_stub = ToolStub(fixture_dir)
+            payload["_tool_stub"] = tool_stub
         mod = importlib.import_module(module)
         fn = getattr(mod, function)
         result = fn(payload)
@@ -68,6 +80,41 @@ class PythonImportAdapter(Adapter):
     """
 
     name = "python"
+
+    def get_manifest(self) -> dict[str, Any]:
+        try:
+            version = importlib.metadata.version("agent-eval-forge")
+        except (importlib.metadata.PackageNotFoundError, OSError):
+            version = "0.0.0"
+        manifest = AdapterManifest(
+            name="python_import",
+            version=version,
+            capabilities=["env_isolation", "timeout"],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string"},
+                    "module": {"type": "string"},
+                    "function": {"type": "string", "default": "run"},
+                    "timeout_seconds": {"type": "number", "default": 120},
+                    "sandbox": {"type": "boolean", "default": False},
+                    "strict_output": {"type": "boolean", "default": False},
+                },
+                "required": ["module"],
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "schema_version": {"type": "string"},
+                    "status": {"type": "string"},
+                    "output": {"type": "object"},
+                    "trajectory": {"type": "object"},
+                    "cost": {"type": "object"},
+                    "error": {"type": "string"},
+                },
+            },
+        )
+        return manifest.to_dict()
 
     def _invoke(self, payload: dict[str, Any], config: dict[str, Any]) -> str | dict[str, Any]:
         """Import and invoke a Python function as the agent.

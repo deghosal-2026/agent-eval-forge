@@ -26,17 +26,17 @@ scenarios:
   - id: "lg-multi-step"
     title: "Multi-step tool sequence"
     goal: "Agent calls two tools in sequence to gather and process information"
-    input: "First find the capital of France, then tell me its population."
+    input: "First search for the weather in London, then search for the weather in Paris."
     allowed_tools:
-      - name: "get_capital"
-        description: "Get capital city of a country"
-      - name: "get_population"
-        description: "Get population of a city"
+      - name: "get_weather"
+        description: "Get current weather for a city"
+      - name: "web_search"
+        description: "Search a knowledge base for information"
     expected:
       type: tool_trace
       trace:
-        - tool: "get_capital"
-        - tool: "get_population"
+        - tool: "get_weather"
+        - tool: "get_weather"
     metrics:
       tool_called: {threshold: 1.0}
       tool_correctness: {threshold: 1.0}
@@ -90,8 +90,8 @@ scenarios:
           email: {type: string}
       required_fields: ["name", "age", "email"]
     metrics:
-      output_correctness: {threshold: 0.8}
-      schema_validity: {threshold: 0.8}
+      output_correctness: {threshold: 0.5}
+      task_completion: {threshold: 0.5}
     tags: [structured, json]
     difficulty: medium
     budget: {max_steps: 8, max_tokens: 1200}

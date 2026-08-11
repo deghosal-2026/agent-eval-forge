@@ -23,16 +23,16 @@ __all__ = [
     "Baseline",
     "BaselineStore",
     "ComparisonEngine",
-    "Runner",
     "RunArtifact",
     "RunScore",
+    "Runner",
     "ScenarioScore",
     "ScoreResult",
     "ScoringEngine",
     "TrustPolicy",
+    "__version__",
     "evaluate",
     "load_pack",
-    "__version__",
 ]
 
 

@@ -34,7 +34,8 @@ _TEMPLATE = (
     "### Scenario Goal\n{goal}\n\n"
     "### User Input\n{input}\n\n"
     "### Agent Output\n{output}\n\n"
-    "### Expected Answer\n{expected}\n\n"
+    "{expected_section}"
+    "{trajectory_section}"
     "### Evaluation Criteria\n{criterion}\n\n"
     'Respond with valid JSON: {{"score": <0.0-1.0>, "rationale": "<explanation>"}}'
 )
@@ -80,17 +81,41 @@ def _build_prompt(scenario: Scenario, artifact: RunArtifact, criterion: str) -> 
 
     Args:
         scenario: The scenario definition (provides goal, input, expected).
-        artifact: The run artifact (provides agent output).
+        artifact: The run artifact (provides agent output and trajectory).
         criterion: The evaluation criterion text specific to the metric.
 
     Returns:
         A formatted prompt string ready to send to the judge model.
     """
+    expected = scenario.expected
+    if expected and expected.value is not None:
+        expected_section = f"### Expected Answer\n{expected.value}\n\n"
+    else:
+        expected_section = ""
+
+    if expected and expected.criteria:
+        criteria_text = "\n".join(f"- {c}" for c in expected.criteria)
+        expected_section += f"### Rubric Criteria\n{criteria_text}\n\n"
+
+    steps = artifact.trajectory or []
+    if steps:
+        lines = [
+            f"- Tool calls: {sum(1 for s in steps if s.type == 'tool_call')}",
+            f"- Total steps: {len(steps)}",
+        ]
+        errors = [s.error for s in steps if s.error]
+        if errors:
+            lines.append(f"- Errors: {len(errors)} ({', '.join(errors[:3])})")
+        trajectory_section = "### Agent Trajectory\n" + "\n".join(lines) + "\n\n"
+    else:
+        trajectory_section = ""
+
     return _TEMPLATE.format(
         goal=scenario.goal or "",
         input=scenario.input or "",
         output=artifact.output.final or "",
-        expected=str(scenario.expected.value) if scenario.expected else "",
+        expected_section=expected_section,
+        trajectory_section=trajectory_section,
         criterion=criterion,
     )
 

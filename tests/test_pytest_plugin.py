@@ -13,6 +13,7 @@ import evalforge.pytest_plugin  # noqa: F401 — ensures plugin loads
 pytest_plugins = ["evalforge.pytest_plugin"]
 
 PACK_YAML = Path(__file__).parent / "fixtures" / "valid_pack.yaml"
+ECHO_AGENT = Path(__file__).parent / "fixtures" / "echo_agent.py"
 SCENARIOS_DIR = Path(__file__).parent.parent / "scenarios"
 
 
@@ -246,7 +247,7 @@ def test_output_formatter_github_actions_test_result() -> None:
 
 def test_pytest_plugin_evalforge_run(tmp_path: Path) -> None:
     """Invoke evalforge test run to exercise the pytest plugin end-to-end."""
-    echo_agent = f"{sys.executable} tests/fixtures/echo_agent.py"
+    echo_agent = f"{sys.executable} {ECHO_AGENT}"
     cwd = tmp_path / "project"
     cwd.mkdir()
     # Create a test scenarios dir with a valid pack

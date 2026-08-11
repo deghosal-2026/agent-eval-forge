@@ -14,7 +14,7 @@ EvalForge is maintained by [deghosal-2026](https://github.com/deghosal-2026).
 - **v0.2.x** — Multi-layer LangGraph validation, VCR/testing profiles, richer reports, expanded field agent roster.
 - **v0.3.x** — Advanced features: distributed execution, compliance hooks, public leaderboard.
 
-See `docs/wbs.md` for the full roadmap.
+See `docs/0.1.0/wbs.md` for the full roadmap.
 
 ## Contributing
 

@@ -55,6 +55,7 @@ class Baseline:
     created: str = field(default_factory=lambda: datetime.now(UTC).isoformat())
     tags: list[str] = field(default_factory=list)
     notes: str = ""
+    adapter_manifest: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         """Serialize to a JSON-compatible dictionary.
@@ -76,6 +77,7 @@ class Baseline:
             "created": self.created,
             "tags": self.tags,
             "notes": self.notes,
+            "adapter_manifest": self.adapter_manifest,
             "runs": [r.model_dump(mode="json") for r in self.runs],
         }
 
@@ -106,4 +108,5 @@ class Baseline:
             created=data.get("created", ""),
             tags=data.get("tags", []),
             notes=data.get("notes", ""),
+            adapter_manifest=data.get("adapter_manifest"),
         )

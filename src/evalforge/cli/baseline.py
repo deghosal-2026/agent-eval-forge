@@ -18,13 +18,16 @@ Subcommands:
 from __future__ import annotations
 
 import json
+import subprocess
 from pathlib import Path
+from typing import Any
 
 import click
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
+from evalforge.adapters.factory import ADAPTERS, create_adapter
 from evalforge.baselines.model import Baseline
 from evalforge.baselines.store import BaselineStore
 from evalforge.loading.pack_loader import load_pack
@@ -98,12 +101,44 @@ def baseline_save(name: str, run: str, pack: str, output_dir: str) -> None:
     for af in sorted(artifact_dir.glob("*.json")):
         artifacts.append(RunArtifact(**json.loads(af.read_text())))
 
+    # Detect git SHA for traceability
+    git_sha: str | None = None
+    try:
+        git_sha = subprocess.check_output(
+            ["git", "rev-parse", "HEAD"], text=True  # noqa: S607
+        ).strip()
+    except (subprocess.CalledProcessError, FileNotFoundError, OSError):
+        pass
+
+    # Load frozen scores for snapshot comparison mode
+    score_snapshot: dict[str, Any] | None = None
+    scores_json = run_dir / "scores.json"
+    if scores_json.exists():
+        score_snapshot = json.loads(scores_json.read_text())
+
+    # Extract agent metadata from the first artifact
+    agent_meta: dict[str, Any] = {}
+    if artifacts:
+        agent_meta = artifacts[0].agent or {}
+
     # Construct the baseline from the pack metadata and run artifacts
+    adapter_manifest: dict[str, Any] | None = None
+    if artifacts and artifacts[0].agent:
+        adapter_type = artifacts[0].agent.get("type")
+        if adapter_type in ADAPTERS:
+            adapter = create_adapter({"type": adapter_type})
+            adapter_manifest = adapter.get_manifest()
+
     baseline_obj = Baseline(
         name=name,
         pack=scenario_pack.pack.name,
         pack_version=scenario_pack.pack.version,
         runs=artifacts,
+        score_snapshot=score_snapshot,
+        agent=agent_meta,
+        trust=scenario_pack.pack.trust,
+        git_sha=git_sha,
+        adapter_manifest=adapter_manifest,
     )
 
     # Persist to disk

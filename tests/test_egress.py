@@ -36,7 +36,7 @@ class TestEgressCheck:
             blocked_domains=["evil.com"],
         )
         ctrl = EgressController(policy)
-        allowed, reason = ctrl.check_url("https://sub.evil.com/hook")
+        allowed, _reason = ctrl.check_url("https://sub.evil.com/hook")
         assert not allowed
 
     def test_localhost_blocked_in_strict_policy(self) -> None:
@@ -49,7 +49,7 @@ class TestEgressCheck:
     def test_localhost_allowed_in_dev_policy(self) -> None:
         policy = EgressPolicyBuilder.development()
         ctrl = EgressController(policy)
-        allowed, reason = ctrl.check_url("http://localhost:3000/api")
+        allowed, _reason = ctrl.check_url("http://localhost:3000/api")
         assert allowed
 
     def test_private_ip_detection(self) -> None:
@@ -131,10 +131,10 @@ class TestEgressCheck:
     def test_air_gapped_policy(self) -> None:
         policy = EgressPolicyBuilder.air_gapped()
         ctrl = EgressController(policy)
-        allowed, reason = ctrl.check_url("https://example.com/api")
+        allowed, _reason = ctrl.check_url("https://example.com/api")
         assert not allowed
 
-        allowed, reason = ctrl.check_url("http://localhost/api")
+        allowed, _reason = ctrl.check_url("http://localhost/api")
         assert not allowed
 
     def test_parse_url_default_ports(self) -> None:
@@ -166,11 +166,11 @@ class TestEgressCheck:
     def test_allowed_subdomain_matches(self) -> None:
         policy = EgressPolicy(allowed_domains=["example.com"])
         ctrl = EgressController(policy)
-        allowed, reason = ctrl.check_url("https://api.example.com/data")
+        allowed, _reason = ctrl.check_url("https://api.example.com/data")
         assert allowed
 
     def test_deny_all_by_default_policy(self) -> None:
         policy = EgressPolicyBuilder.DEFAULT_DENY_ALL
         ctrl = EgressController(policy)
-        allowed, reason = ctrl.check_url("https://any-site.com/api")
+        allowed, _reason = ctrl.check_url("https://any-site.com/api")
         assert not allowed

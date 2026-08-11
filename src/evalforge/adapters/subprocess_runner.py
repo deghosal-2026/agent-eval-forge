@@ -17,10 +17,21 @@ from __future__ import annotations
 
 import json
 import subprocess
+from pathlib import Path
 from typing import Any
 
 from evalforge.models.errors import AdapterError, AgentTimeoutError
 from evalforge.security.sandbox import DockerConfig, SandboxConfig, run_in_container, sandboxed_run
+
+
+def _find_evalforge_path() -> str:
+    """Return the parent directory containing the ``evalforge`` package.
+
+    This is added to ``PYTHONPATH`` so the agent subprocess can import
+    ``evalforge.fixtures`` (e.g. ``from evalforge.fixtures import ToolStub``)
+    when running in fixture mode.
+    """
+    return str(Path(__file__).resolve().parent.parent.parent)
 
 
 def run_agent_in_subprocess(
@@ -71,6 +82,11 @@ def run_agent_in_subprocess(
     if config.get("fixtures"):
         extra_env["EVALFORGE_FIXTURES"] = "1"
         extra_env["EVALFORGE_FIXTURES_DIR"] = config.get("fixtures_dir", "scenarios/fixtures")
+        evalforge_path = _find_evalforge_path()
+        existing = extra_env.get("PYTHONPATH", "")
+        extra_env["PYTHONPATH"] = (
+            f"{evalforge_path}{':' + existing if existing else ''}"
+        )
     try:
         result = sandboxed_run(
             args=agent_cmd,

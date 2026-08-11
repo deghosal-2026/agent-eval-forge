@@ -68,7 +68,7 @@ class EgressController:
         Returns:
             A tuple of ``(allowed: bool, reason: str)``.
         """
-        scheme, host, port, path = self.parse_url(url)
+        scheme, host, port, _path = self.parse_url(url)
 
         if self._policy.allowed_schemes and scheme not in self._policy.allowed_schemes:
             return False, (

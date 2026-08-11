@@ -82,7 +82,7 @@ class TestMLXJudgeClientServerLifecycle:
     def test_ensure_server_raises_on_missing_mlx_lm(self) -> None:
         j = MLXJudgeClient(model="test-model")
         with patch("subprocess.Popen", side_effect=FileNotFoundError):
-            with pytest.raises(RuntimeError, match="mlx_lm.server not found"):
+            with pytest.raises(RuntimeError, match=r"mlx_lm.server not found"):
                 j._ensure_server()
 
     def test_ensure_server_raises_on_startup_timeout(self) -> None:

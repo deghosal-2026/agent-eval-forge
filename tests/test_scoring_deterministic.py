@@ -424,7 +424,8 @@ def test_factual_consistency_detects_ungrounded() -> None:
         ]
     )
     art.output.final = (
-        "CPU load is normal at 15 percent. The quantum cryptography module requires reinitialization."
+        "CPU load is normal at 15 percent. "
+        "The quantum cryptography module requires reinitialization."
     )
     sc = _scenario(allowed=["search"])
     result = scorer.score(art, sc, {"threshold": 0.8})
@@ -566,3 +567,72 @@ def test_factual_consistency_empty_input_passes() -> None:
     result = scorer.score(art, sc, {"threshold": 0.8})
     assert result.score == 1.0
     assert result.passed is True
+
+
+def test_phantom_step_detected() -> None:
+    from evalforge.scoring.deterministic.phantom import PhantomStepScorer
+
+    scorer = PhantomStepScorer()
+    read_call = {
+        "type": "tool_call",
+        "tool": "read_file",
+        "args": {"path": "main.py"},
+        "duration_ms": 10,
+    }
+    art = _artifact([read_call, read_call])
+    sc = _scenario(allowed=["read_file"])
+    result = scorer.score(art, sc, {"threshold": 0.7})
+    assert result.score < 1.0
+    assert result.detail["phantom_steps"] == 1
+    assert result.detail["phantom_ratio"] == 0.5
+
+
+def test_phantom_step_none() -> None:
+    from evalforge.scoring.deterministic.phantom import PhantomStepScorer
+
+    scorer = PhantomStepScorer()
+    customer_call = {
+        "type": "tool_call",
+        "tool": "customer_lookup",
+        "args": {"id": "42"},
+        "duration_ms": 10,
+    }
+    ticket_call = {
+        "type": "tool_call",
+        "tool": "ticket_search",
+        "args": {"customer": "42"},
+        "duration_ms": 10,
+    }
+    art = _artifact([customer_call, ticket_call])
+    sc = _scenario(allowed=["customer_lookup", "ticket_search"])
+    result = scorer.score(art, sc, {"threshold": 0.7})
+    assert result.score == 1.0
+    assert result.detail["phantom_steps"] == 0
+
+
+def test_phantom_step_mixed() -> None:
+    from evalforge.scoring.deterministic.phantom import PhantomStepScorer
+
+    scorer = PhantomStepScorer()
+    search_call = {
+        "type": "tool_call",
+        "tool": "search",
+        "args": {"q": "error"},
+        "duration_ms": 10,
+    }
+    log_call = {
+        "type": "tool_call",
+        "tool": "read_log",
+        "args": {"service": "auth"},
+        "duration_ms": 10,
+    }
+    art = _artifact(
+        [search_call, search_call, log_call, search_call, search_call]
+    )
+    sc = _scenario(allowed=["search", "read_log"])
+    result = scorer.score(art, sc, {"threshold": 0.7})
+    # 5 total tool calls, 2 phantom steps (steps 1->2 and 4->5)
+    assert result.detail["total_tool_calls"] == 5
+    assert result.detail["phantom_steps"] == 2
+    assert result.detail["phantom_ratio"] == 0.4
+    assert result.score == 0.6

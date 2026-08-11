@@ -61,6 +61,29 @@ langgraph = [
 pydanticai = [
     "pydantic-ai>=0.0.10",
 ]
+crewai = [
+    "crewai>=0.100",
+]
+openai-agents = [
+    "openai-agents>=0.1",
+]
+smolagents = [
+    "smolagents>=1.0",
+    "litellm>=1.0",
+]
+autogen = [
+    "autogen-agentchat>=0.4",
+    "autogen-ext>=0.4",
+]
+llamaindex = [
+    "llama-index>=0.11",
+]
+claude = [
+    "claude-agent-sdk>=0.1",
+]
+adk = [
+    "google-adk>=1.0",
+]
 dev = [
     "pytest>=8.0",
     "pytest-cov>=5.0",
@@ -97,6 +120,8 @@ ignore = []
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S101"]
+"field/**" = ["E402", "S101", "S110", "S112", "E501", "I001", "B010", "S307", "B007", "RUF005", "S602", "B904", "E401", "F841"]
+"scripts/**" = ["S101"]
 
 [tool.mypy]
 strict = true

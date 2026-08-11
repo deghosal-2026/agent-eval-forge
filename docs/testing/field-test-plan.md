@@ -19,9 +19,9 @@ Field tests validate that agent-eval-forge works correctly with **real, third-pa
 
 Field tests are the **final gate** before a release: if an agent that worked last week fails this week, the change is either a breaking regression (block release) or an upstream agent change (document and adapt).
 
-Target Volume: Run field tests against 30 public, open-source agents sourced from GitHub across two primary frameworks: LangGraph and PydanticAI (15 each). These represent real-world agents with tool use and varied graph topologies.
+Target Volume: Run field tests against public, open-source agents sourced from GitHub across twelve primary adapter families: LangGraph, PydanticAI, CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex Agents, Claude Agent SDK, Google ADK, HTTP, subprocess, and Python import. These represent real-world agents with tool use and varied framework topologies.
 
-Execution Mode (Near-Term): Local sweep (not CI) using a curated, pre-approved list of 30 agents. The full 100-agent roster and stretch goals are cataloged in [docs/testing/field-test-agents.md](field-test-agents.md). CI wiring in §6 remains as a future/secondary path; initial runs will be executed on a developer machine with OpenRouter credentials configured locally.
+Execution Mode (Near-Term): Local sweep (not CI) using a curated, pre-approved list of agents across all 12 adapter families. The full agent roster catalog is maintained in [docs/testing/field-test-agents.md](field-test-agents.md). CI wiring in §6 remains as a future/secondary path; initial runs will be executed on a developer machine with OpenRouter credentials configured locally.
 
 ## 2. Agent Selection Criteria
 
@@ -30,7 +30,7 @@ Execution Mode (Near-Term): Local sweep (not CI) using a curated, pre-approved l
 An agent qualifies for field testing when it meets **all** of:
 
 1. **Production quality** — the repo has >= 100 GitHub stars, or is maintained by a recognized organization, or has >= 2 contributors with commits in the last 90 days.
-2. **Framework-aligned** — the agent uses one of eval-forge's supported adapter types: LangGraph (`create_react_agent`), PydanticAI, HTTP, or subprocess.
+2. **Framework-aligned** — the agent uses one of eval-forge's supported adapter types: LangGraph (`create_react_agent`), PydanticAI, CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex, Claude Agent SDK, Google ADK, HTTP, or subprocess.
 3. **Runnable offline** — the agent can be configured with either a local model (Ollama, MLX) or a provided API key via environment variable. Agents that require exclusive or proprietary hardware are excluded.
 4. **Open source license** — MIT, Apache 2.0, BSD-3, or other permissive license. GPL/LGPL agents may be included if they do not contaminate eval-forge's license.
 5. **Tool-using** — the agent must use tools/functions. Pure chat agents (no tool calls) are out of scope for field tests because they produce no trajectory to validate.
@@ -55,14 +55,14 @@ Candidate agents are sourced from:
 
 Each candidate is evaluated via a checklist (see `field/CHECKLIST.md` template in the field harness) before inclusion.
 
-Minimum Mix: The suite includes 15 LangGraph and 15 PydanticAI agents (50/50 split) to exercise both adapter families.
+Minimum Mix: The suite includes agents across all 12 supported adapter families to exercise the full framework surface.
 
 License Policy: Only OSI-approved open-source licenses are included (MIT, Apache-2.0, BSD-2/3, GPL, LGPL, AGPL). Exclude non-OSI and non-commercial licenses. We do not vendor or redistribute third-party code; clones are local at pinned SHAs.
 
-Popularity Bands for Curation (30 total agents):
-- High stars (≥ 1000): 10 agents total — 5 LangGraph, 5 PydanticAI
-- Medium stars (100–999): 10 agents total — 5 LangGraph, 5 PydanticAI
-- Very low stars (< 50): 10 agents total — 5 LangGraph, 5 PydanticAI
+Popularity Bands for Curation:
+- High stars (≥ 1000): targeting agents across all adapter families
+- Medium stars (100–999): targeting agents across all adapter families
+- Very low stars (< 50): targeting agents across all adapter families (surfaces poorly maintained agents to validate harness robustness)
 
 Rationale: The very low band intentionally surfaces likely issues in poorly maintained agents to validate harness robustness and error taxonomy.
 
@@ -152,7 +152,7 @@ Every agent in the field test suite has a corresponding `field.json` file that d
     },
     "adapter_type": {
       "type": "string",
-      "enum": ["langgraph", "pydantic-ai", "http", "subprocess", "python"],
+      "enum": ["langgraph", "pydantic-ai", "http", "subprocess", "python", "crewai", "openai-agents", "smolagents", "autogen", "llamaindex", "claude", "adk"],
       "description": "EvalForge adapter type used to invoke this agent."
     },
     "adapter_config": {
@@ -351,6 +351,90 @@ Scenario pack: `field/scenarios/subprocess-core.yaml`
 | `sub-nonzero-exit` | Agent exits non-zero with error on stderr | `status == "error"`, error message captured | Validates crash normalization |
 | `sub-timeout` | Agent hangs beyond timeout | `status == "timeout"` | Validates timeout enforcement |
 
+### Category: CrewAI Agents
+
+Scenario pack: `field/scenarios/crewai-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `crew-basic-tool-call` | Agent calls 2+ tools via Crew.kickoff() | `tool_correctness`, `step_efficiency` | Validates CrewOutput trajectory extraction |
+| `crew-multi-step` | Agent executes multi-task crew workflow | `tool_called`, `task_completion` | Exercises per-agent task/tool extraction |
+| `crew-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests final output extraction from CrewOutput.raw |
+| `crew-disallowed-tool` | Agent must refuse disallowed tool in crew | `zero_disallowed_actions`, `policy_adherence` | Safety gate validation |
+| `crew-structured-output` | Agent returns structured output from crew | `schema_validity`, `output_correctness` | Validates CrewOutput normalization |
+
+### Category: OpenAI Agents SDK Agents
+
+Scenario pack: `field/scenarios/openai-agents-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `oa-basic-tool-call` | Agent calls tools via Runner.run_sync() | `tool_correctness` | Validates event-stream trajectory extraction |
+| `oa-multi-step` | Agent chains tool calls with handoffs | `step_efficiency`, `tool_called` | Exercises guardrail/handoff traces |
+| `oa-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests RunResult.final_output extraction |
+| `oa-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `oa-structured-output` | Agent returns structured output via Pydantic | `schema_validity` | Validates output extraction from RunResult |
+
+### Category: smolagents Agents
+
+Scenario pack: `field/scenarios/smolagents-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `sm-basic-tool-call` | Agent calls tools via CodeAgent.run() | `tool_correctness` | Validates Hugging Face Step extraction |
+| `sm-multi-step` | Agent executes multi-step code/tool workflow | `step_efficiency`, `tool_called` | Exercises ToolCallStep/ObservationStep extraction |
+| `sm-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests FinalAnswerStep extraction |
+| `sm-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `sm-structured-output` | Agent returns structured output | `schema_validity` | Validates code-execution step handling |
+
+### Category: AutoGen Agents
+
+Scenario pack: `field/scenarios/autogen-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `ag-basic-tool-call` | Agent calls tools in group chat | `tool_correctness` | Validates chat-history trajectory extraction |
+| `ag-multi-step` | Agent executes multi-turn group workflow | `step_efficiency`, `tool_called` | Exercises function_call/tool message parsing |
+| `ag-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests last-message output extraction |
+| `ag-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `ag-structured-output` | Agent returns structured result from chat | `output_correctness`, `task_completion` | Validates multi-agent output extraction |
+
+### Category: LlamaIndex Agents
+
+Scenario pack: `field/scenarios/llamaindex-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `li-basic-tool-call` | Agent calls tools via FunctionCallingAgentWorker | `tool_correctness` | Validates response-source trajectory extraction |
+| `li-multi-step` | Agent executes multi-step query workflow | `step_efficiency`, `tool_called` | Exercises AgentRunner tool-call extraction |
+| `li-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests Response.response extraction |
+| `li-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `li-structured-output` | Agent returns structured query result | `output_correctness` | Validates source_nodes integration |
+
+### Category: Claude Agent SDK Agents
+
+Scenario pack: `field/scenarios/claude-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `cl-basic-tool-call` | Agent calls tools via Agent.run | `tool_correctness` | Validates event-stream trajectory extraction |
+| `cl-multi-step` | Agent executes multi-step tool+thinking workflow | `step_efficiency`, `tool_called` | Exercises tool-use/thinking block parsing |
+| `cl-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests text-block output extraction |
+| `cl-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `cl-structured-output` | Agent returns structured output from run | `output_correctness` | Validates agent events normalization |
+
+### Category: Google ADK Agents
+
+Scenario pack: `field/scenarios/adk-core.yaml`
+
+| Scenario ID | Goal | Key Metrics | Rationale |
+|---|---|---|---|
+| `adk-basic-tool-call` | Agent calls tools via google.adk Agent | `tool_correctness` | Validates action/event-stream trajectory extraction |
+| `adk-multi-step` | Agent executes multi-step agent workflow | `step_efficiency`, `tool_called` | Exercises function-call/response event parsing |
+| `adk-no-tool-needed` | Agent responds without tool calls | `task_completion` | Tests text event extraction |
+| `adk-disallowed-tool` | Agent must refuse disallowed tool | `zero_disallowed_actions` | Safety gate validation |
+| `adk-structured-output` | Agent returns structured result | `output_correctness` | Validates ADKResult normalization |
+
 ### Shared Scenarios (all categories)
 
 `field/scenarios/shared-safety.yaml` runs against every agent:
@@ -376,6 +460,13 @@ field/
 │   ├── pydantic-ai-core.yaml
 │   ├── http-core.yaml
 │   ├── subprocess-core.yaml
+│   ├── crewai-core.yaml
+│   ├── openai-agents-core.yaml
+│   ├── smolagents-core.yaml
+│   ├── autogen-core.yaml
+│   ├── llamaindex-core.yaml
+│   ├── claude-core.yaml
+│   ├── adk-core.yaml
 │   └── shared-safety.yaml
 ├── results/                    # Timestamped run outputs (gitignored)
 │   └── 2026-08-01T12-00-00/
@@ -536,7 +627,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
-      - run: uv sync --extra dev --extra judge --extra langgraph --extra pydanticai
+      - run: uv sync --extra dev --extra judge --extra langgraph --extra pydanticai --extra crewai --extra openai-agents --extra smolagents --extra autogen --extra llamaindex --extra claude --extra adk
       - run: bash field/setup.sh --agent ${{ matrix.agent.agent_id }}
       - name: Run field tests
         run: >

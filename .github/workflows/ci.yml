@@ -151,7 +151,7 @@ jobs:
         run: |
           uv run evalforge run \
             --pack scenarios/core-launch.yaml \
-            --agent python:fixtures.echo_agent \
+            --agent python:fixtures.echo_agent:run \
             --output .evalforge \
             --output-format github-actions \
             --ci \

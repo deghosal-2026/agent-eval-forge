@@ -48,8 +48,17 @@ def parse_agent_spec(agent_spec: str) -> dict[str, Any]:
     cfg: dict[str, Any] = {"type": adapter_type}
 
     if adapter_type in ("python", "langgraph", "pydantic-ai"):
-        # Framework adapters use Python module resolution
-        cfg["module"] = value
+        # Framework adapters use Python module resolution.
+        # Support "module" and "module:function" forms:
+        #   python:my_module        → module="my_module", function="run" (default)
+        #   python:my_module:run    → module="my_module", function="run"
+        #   python:pkg.mod:myfunc   → module="pkg.mod", function="myfunc"
+        module_value = value.rsplit(":", 1)
+        if len(module_value) == 2:
+            cfg["module"] = module_value[0]
+            cfg["function"] = module_value[1]
+        else:
+            cfg["module"] = value
     elif adapter_type == "http":
         cfg["url"] = value
     elif adapter_type == "subprocess":

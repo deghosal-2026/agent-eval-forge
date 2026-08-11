@@ -1,8 +1,8 @@
 # EvalForge — Technical Specification
 
-**Version:** 0.1  
-**Date:** 2026-07-28  
-**Dependencies:** PRD v1.0 (approved)
+**Version:** 0.2
+**Date:** 2026-08-10
+**Dependencies:** PRD v1.1 (approved)
 
 ## Architecture Overview
 
@@ -14,8 +14,11 @@ evalforge (pytest) ──┼──→ Core Runner ──→ Adapter ──→ Ag
 evalforge (lib  ) ───┘         │
                                 ├── Scorer (deterministic)
                                 ├── Judge  (LLM-as-judge)
-                                └── Diff   (baseline comparison)
+                                 └── Diff   (baseline comparison)
 ```
+
+For the architectural principle behind this design — the two-layer defense
+model validated by the JPS integration study — see [Architecture](architecture.md).
 
 ## Runtime Interfaces
 
@@ -106,6 +109,19 @@ agent:
   function: run
   timeout_seconds: 120
   strict_output: false
+```
+
+**Agent spec syntax (v0.2.0):** `python:module:function` — the function name defaults to `run` when omitted:
+
+```bash
+# Explicit function
+evalforge run --pack scenarios.yaml --agent python:my_package.my_module:handle_request
+
+# Backward compatible — defaults to run()
+evalforge run --pack scenarios.yaml --agent python:my_package.my_module
+
+# Override the function name via CLI flag
+evalforge run --pack scenarios.yaml --agent python:my_package.my_module --agent-function handle_request
 ```
 
 Contract: `run(payload: dict) -> dict | str`
@@ -231,7 +247,6 @@ All four types are configurable per scenario. A scenario may use one or combine 
 
 | Scorer | Checks | Example |
 |--------|--------|---------|
-| `exact_match` | Output equals expected (case-insensitive optional) | "60-day return window" |
 | `schema_valid` | Output validates against JSON Schema | `{return_window_days: int, shipping: str}` |
 | `field_presence` | Required fields exist in output | `return_window_days` is present |
 | `tool_called` | Specific tool was invoked | `policy_lookup` was called |
@@ -246,6 +261,7 @@ All four types are configurable per scenario. A scenario may use one or combine 
 | `source_citation` | Output cites sources from retrieved data | Mentions `policy_lookup` result |
 | `output_grounding` | Output is grounded in tool returns | Every claim traceable to a tool |
 | `contradiction_detection` | Output contains no internal contradictions | No self-contradiction in multi-turn |
+| `phantom_step_scorer` | Detects tool calls that don't advance agent state | No-op re-read of same artifact |
 
 ### LLM-as-Judge Scorers (semantic, slower, costs tokens)
 
@@ -256,6 +272,11 @@ All four types are configurable per scenario. A scenario may use one or combine 
 | `synthesis_quality` | Quality of multi-source synthesis |
 | `clarification_quality` | Quality of clarifying question |
 | `conflict_explanation` | Quality of conflict detection and communication |
+
+For guidance on when to use deterministic vs. LLM-based scoring, including
+empirical comparison data from the JPS integration study, see
+[Scoring Comparison](scoring-comparison.md).
+
 | `hallucination_check` | Did the agent fabricate facts? |
 | `refusal_quality` | Quality of safe refusal |
 | `plan_quality` | Quality of proposed plan |
@@ -276,6 +297,8 @@ output_correctness:
     threshold: 0.8
 ```
 
+**Offline behavior (v0.2.0):** Hybrid metrics always run their deterministic gate portion, even when no LLM judge is configured. If the judge is missing, the score reflects the deterministic gate result and `judge_not_evaluated: true` is set in the score detail. This ensures safety guarantees (disallowed-tool checks, escalation detection) are never silently skipped in offline mode.
+
 ### Scoring Pipeline
 
 **Evaluation Hierarchy:** Safety failures trump correctness failures, which trump efficiency failures.
@@ -285,6 +308,50 @@ output_correctness:
 - **Efficiency regressions (cost, latency, step count) warn by default** and are informational unless explicitly promoted.
 
 A scenario pack can override these defaults per metric via `threshold` and `blocking` fields.
+
+### Scoring Dimensions (v0.2.0)
+
+Scores are computed across three independent dimensions, each gatable in CI:
+
+| Dimension | What it measures | Example failures |
+|-----------|-----------------|------------------|
+| `compatibility` | Adapter success, import health, tool contract, no blank completions | Script crash, import error, empty output |
+| `safety` | Disallowed-tool avoidance, budget adherence, sandbox violations | Called `customer_delete`, exceeded budget |
+| `quality` | Trajectory correctness, answer quality, LLM judge metrics | Wrong tool, wrong answer, hallucinated fact |
+
+Each dimension score is the mean of its mapped metric scores. CLI output shows all three:
+
+```
+  Dimensions: compatibility=1.00, safety=0.50, quality=0.83
+```
+
+### Scoring Breakdown (v0.2.0)
+
+Every scenario result includes a `scoring_breakdown` block with:
+
+- **`deterministic`**: per-check pass/fail for all 17 deterministic scorers
+- **`llm_judge`**: per-metric score and rationale for all judge metrics
+- **`divergences`**: cases where deterministic pass ≠ LLM pass, classified as:
+  - `critical` — deterministic failed, LLM passed (agent used wrong tool to get right answer)
+  - `warning` — deterministic passed, LLM failed (correct path, poor answer)
+
+```json
+{
+  "scoring_breakdown": {
+    "deterministic": [
+      {"metric": "tool_correctness", "score": 1.0, "passed": true, "scenario_id": "lookup-01"}
+    ],
+    "llm_judge": [
+      {"metric": "output_correctness", "score": 0.8, "passed": true, "rationale": "...", "scenario_id": "lookup-01"}
+    ],
+    "divergences": [
+      {"scenario_id": "lookup-01", "type": "critical", "detail": "Deterministic check(s) failed but LLM judge passed"}
+    ]
+  }
+}
+```
+
+Use `--fail-on-divergence critical` in CI to gate on critical divergences (exit code 5).
 
 ```
 Run Artifact ──→ Deterministic Scorers (always run) ──→ Scores
@@ -365,6 +432,55 @@ Notes:
 - Adapters may collapse `tool_call`+`tool_result` into a single step in v0.1.
 - Extra fields are allowed and ignored for forward compatibility.
 
+### ExecutionTrace (v0.2.0)
+
+When an agent run fails, EvalForge emits a `trace_diff.json` alongside the scenario result that captures where execution diverged from the expected path:
+
+```json
+{
+  "expected_steps": ["tool_dispatch", "model_call", "structured_output", "completion"],
+  "actual_steps": ["tool_dispatch"],
+  "divergence_point": "model_call",
+  "divergence_type": "stopped_early"
+}
+```
+
+Divergence types: `stopped_early`, `skipped_step`, `hung`, `errored`, `silent_empty`.
+
+### RunManifest (v0.2.0)
+
+Every `evalforge run` produces a `run-manifest.json` for reproducibility:
+
+```json
+{
+  "run_id": "run-20260802-143022-a1b2",
+  "timestamp": "2026-08-02T14:30:22Z",
+  "host": {
+    "os": "macOS 15.2",
+    "arch": "arm64",
+    "python": "3.12.4",
+    "hostname": "my-machine"
+  },
+  "agent": {
+    "adapter": "python_import",
+    "entry_point": "my_package.my_module:run",
+    "version": "abc123"
+  },
+  "dependencies": [
+    {"name": "pydantic-ai", "version": "0.3.0"}
+  ],
+  "environment": ["OPENAI_API_KEY", "EVALFORGE_HOME"],
+  "execution": {
+    "total_wall_time_ms": 45000,
+    "tool_call_count": 12,
+    "retry_count": 0,
+    "warnings": []
+  }
+}
+```
+
+Suppress with `--no-manifest` (useful in privacy-sensitive environments).
+
 ## Baseline Model
 
 Baselines use named files by default. Git-tag references also supported.
@@ -406,6 +522,18 @@ Candidate runs are compared against baselines at three levels:
 2. **Per scenario family / tag** — did a class of scenarios regress?
 3. **Aggregate pack level** — overall score delta across the pack
 
+**Three-way outcome classification (v0.2.0):** The comparison engine distinguishes failure modes:
+
+| Outcome | Meaning | Example |
+|---------|---------|---------|
+| `adapter_failed` | Scenario couldn't run due to adapter/infra issue | Script crash, import error |
+| `agent_crashed` | Agent ran but crashed or timed out | TIMEOUT, agent_crash |
+| `scenario_failed` | Agent ran but produced wrong answer | Hallucination, wrong tool |
+| `model_changed` | Agent model differs from baseline (not a regression) | gpt-4o → gpt-4o-mini |
+| `adapter_changed` | Adapter config differs from baseline (not a regression) | python_import → subprocess |
+
+Use `--allow-adapter-change` to suppress adapter change detection for intentional swaps.
+
 ```yaml
 comparison:
   baseline: "v1.2.3"
@@ -417,9 +545,13 @@ comparison:
     unchanged: 4
     new_failures: 1
     new_passes: 1
+    adapter_changed: false
+    model_changed: false
   aggregate:
     overall_score_delta: +0.03
     safety_score_delta: 0.0
+    compatibility_score: 0.85
+    quality_score: 0.72
     cost_delta_usd: -0.02
   by_family:
     retrieval:
@@ -1633,6 +1765,145 @@ adapter = IsolatedAdapter(
 )
 ```
 
+The `IsolatedAdapter` described above is the only isolated adapter in v0.2.0.
+
+### Adapter-Type Reference Table
+
+| Adapter | Agent Spec | Default Builder | Framework |
+|---------|-----------|----------------|-----------|
+| `subprocess` | `subprocess:./agent.py` | — | Any |
+| `python` | `python:my_pkg.agent:run` | `run` | Any Python |
+| `http` | `http:http://localhost:8000/run` | — | Any HTTP |
+| `langgraph` | `langgraph:my_pkg.graph:build_agent` | `build_agent` | LangGraph |
+| `pydantic-ai` | `pydanticai:my_pkg.agent:build_agent` | `build_agent` | PydanticAI |
+| `crewai` | `crewai:module:crew` | `crew` | CrewAI |
+| `openai-agents` | `openai-agents:module:agent` | `agent` | OpenAI Agents SDK |
+| `smolagents` | `smolagents:module:build_agent` | `build_agent` | smolagents (Hugging Face) |
+| `autogen` | `autogen:module:build_agent` | `build_agent` | AutoGen |
+| `llamaindex` | `llamaindex:module:build_agent` | `build_agent` | LlamaIndex |
+| `claude` | `claude:module:build_agent` | `build_agent` | Claude Agent SDK |
+| `adk` | `adk:module:build_agent` | `build_agent` | Google ADK |
+
+### smolagents Adapter
+
+```python
+from evalforge.adapters.smolagents import SmolagentsAdapter
+
+adapter = SmolagentsAdapter(
+    module="my_package.agent",
+    function="build_agent"
+)
+
+# EvalForge calls adapter.run(input, tools, context)
+# Adapter invokes CodeAgent/ToolCallingAgent, captures memory/steps, returns normalized artifact
+```
+
+The smolagents adapter must:
+- Resolve `module`/`function` (default `build_agent`) to obtain a `CodeAgent` or `ToolCallingAgent`
+- Invoke with the scenario input
+- Extract trajectory from `agent.memory`/`agent.steps` (ToolCallStep, ObservationStep, FinalAnswerStep)
+- Normalize tool calls and code-execution steps into EvalForge format
+- Honor `EVALFORGE_FIELD_MODEL/ENDPOINT` + `EVALFORGE_FORCE_MODEL` for model redirection
+- Expose `get_manifest()` → `AdapterManifest` with canonical digest
+
+Install: `pip install evalforge[smolagents]`
+
+### AutoGen Adapter
+
+```python
+from evalforge.adapters.autogen import AutoGenAdapter
+
+adapter = AutoGenAdapter(
+    module="my_package.agent",
+    function="build_agent"
+)
+
+# EvalForge calls adapter.run(input, tools, context)
+# Adapter invokes AssistantAgent/ConversableAgent, captures chat_history, returns normalized artifact
+```
+
+The AutoGen adapter must:
+- Resolve `module`/`function` (default `build_agent`) to obtain an `AssistantAgent`/`ConversableAgent`
+- Initiate chat with the scenario input
+- Extract trajectory from `chat_history`/`oai_messages` (function_call, tool_calls, tool, text)
+- Normalize into EvalForge format
+- Honor `EVALFORGE_FIELD_MODEL/ENDPOINT` + `EVALFORGE_FORCE_MODEL` for model redirection
+- Expose `get_manifest()` → `AdapterManifest` with canonical digest
+
+Install: `pip install evalforge[autogen]`
+
+### LlamaIndex Adapter
+
+```python
+from evalforge.adapters.llamaindex import LlamaIndexAdapter
+
+adapter = LlamaIndexAdapter(
+    module="my_package.agent",
+    function="build_agent"
+)
+
+# EvalForge calls adapter.run(input, tools, context)
+# Adapter invokes AgentRunner/AgentWorker, captures response + tool calls, returns normalized artifact
+```
+
+The LlamaIndex adapter must:
+- Resolve `module`/`function` (default `build_agent`) to obtain an `AgentRunner`/`AgentWorker`
+- Run a chat/query with the scenario input
+- Extract trajectory from response sources + tool calls
+- Normalize into EvalForge format
+- Honor `EVALFORGE_FIELD_MODEL/ENDPOINT` + `EVALFORGE_FORCE_MODEL` for model redirection
+- Expose `get_manifest()` → `AdapterManifest` with canonical digest
+
+Install: `pip install evalforge[llamaindex]`
+
+### Claude Agent SDK Adapter
+
+```python
+from evalforge.adapters.claude import ClaudeAgentSDKAdapter
+
+adapter = ClaudeAgentSDKAdapter(
+    module="my_package.agent",
+    function="build_agent"
+)
+
+# EvalForge calls adapter.run(input, tools, context)
+# Adapter invokes claude.agents.Agent, captures events/blocks, returns normalized artifact
+```
+
+The Claude adapter must:
+- Resolve `module`/`function` (default `build_agent`) to obtain a `claude.agents.Agent`
+- Run with the scenario input
+- Extract trajectory from agent events/blocks (tool use, results, text, thinking)
+- Normalize into EvalForge format
+- Honor `EVALFORGE_FIELD_MODEL/ENDPOINT` + `EVALFORGE_FORCE_MODEL` for model redirection
+- Expose `get_manifest()` → `AdapterManifest` with canonical digest
+
+Install: `pip install evalforge[claude]`
+
+### Google ADK Adapter
+
+```python
+from evalforge.adapters.adk import ADKAdapter
+
+adapter = ADKAdapter(
+    module="my_package.agent",
+    function="build_agent"
+)
+
+# EvalForge calls adapter.run(input, tools, context)
+# Adapter invokes google.adk.agents.Agent, captures action/event stream, returns normalized artifact
+```
+
+The ADK adapter must:
+- Resolve `module`/`function` (default `build_agent`) to obtain a `google.adk.agents.Agent`
+- Run via `gadk`/runner with the scenario input
+- Extract trajectory from action/event stream (function-call, function-response, text, thought)
+- Normalize into EvalForge format
+- Honor `EVALFORGE_FIELD_MODEL/ENDPOINT` + `EVALFORGE_FORCE_MODEL` for model redirection
+- Expose `get_manifest()` → `AdapterManifest` with canonical digest
+
+Install: `pip install evalforge[adk]`
+
 ## Validator Contract
 
 Deterministic scorers implement a common interface. Custom scorers are first-class.
@@ -1762,10 +2033,11 @@ EvalForge is designed to run in CI with clear exit codes and structured output.
 | Code | Meaning |
 |------|---------|
 | 0 | All scenarios passed |
-| 1 | One or more scenarios failed (regression or threshold breach) |
+| 1 | One or more scenarios failed (regression or threshold breach, or dimension below threshold via `--fail-on`) |
 | 2 | Configuration error (invalid pack, missing baseline, bad agent ref) |
 | 3 | Infrastructure error (judge unavailable, timeout, crash) |
 | 4 | Safety boundary violation detected |
+| 5 | Critical divergence detected (`--fail-on-divergence critical`) |
 
 ### GitHub Actions
 
@@ -1789,6 +2061,23 @@ The `--ci` flag:
 - Fails on safety violations (exit code 4)
 - Warnings for soft-score deltas
 - Generates GitHub Actions summary comment
+
+**Three-way dimension gating (v0.2.0):** Use `--fail-on` to gate specific score dimensions:
+
+```bash
+evalforge run --pack scenarios.yaml --agent python:my_agent.py --ci --fail-on safety
+evalforge run --pack scenarios.yaml --agent python:my_agent.py --ci --fail-on all
+```
+
+Choices: `compatibility`, `safety`, `quality`, `all`. Exits non-zero (code 1) when the dimension score falls below 0.8.
+
+**Divergence gating (v0.2.0):** Gate on critical divergences between deterministic and LLM judge scores:
+
+```bash
+evalforge run --pack scenarios.yaml --agent python:my_agent.py --ci --fail-on-divergence critical
+```
+
+Exits code 5 when critical divergences exist.
 
 ### GitLab CI
 
@@ -2087,22 +2376,14 @@ evalforge validate --pack scenarios.yaml --check-fixtures
 ```python
 from evalforge.fixtures import ToolStub
 
-stubs = ToolStub.load_from_scenario(scenario)
+stubs = ToolStub(fixtures_dir="scenarios/fixtures")
 
-# During adapter execution, replace tool calls with stubs:
-response = stubs.call("policy_lookup", {"query": "return policy"})
+# During adapter execution, intercept tool calls with stubs:
+response = stubs.intercept("policy_lookup", {"query": "return policy"})
 # Returns: "Premium customers: 60-day return window, free return shipping."
 
-# Simulate errors and latency:
-from evalforge.fixtures import FixtureConfig
-
-config = FixtureConfig(
-    error_rate=0.1,          # 10% of calls return error
-    min_delay_ms=50,         # minimum simulated latency
-    max_delay_ms=500,        # maximum simulated latency
-    error_message="Service temporarily unavailable"
-)
-stubs = ToolStub.load_from_scenario(scenario, config=config)
+# Set delay on the stub instance:
+stubs.set_delay_ms(100)  # 100ms simulated latency per call
 ```
 
 ### Fixture Directory Structure
@@ -2129,6 +2410,29 @@ Use `--record-fixtures` to capture live tool responses as fixtures:
 evalforge run --pack scenarios.yaml --agent python:my_agent.py --live --record-fixtures
 # Writes .evalforge/fixtures/<scenario_id>/<tool_name>.json
 ```
+
+## AdapterManifest (v0.2.0)
+
+Every adapter exposes a structured manifest with a SHA-256 digest for baseline binding:
+
+```json
+{
+  "name": "python_import",
+  "version": "0.2.0",
+  "capabilities": ["stdin_stdout", "env_isolation", "timeout", "cancellation"],
+  "input_schema": {"type": "object", "properties": {"input": {"type": "string"}}},
+  "output_schema": {"type": "object", "properties": {"final": {"type": "string"}}},
+  "tool_event_stream_version": "evalforge.run_envelope.v1",
+  "writable_paths": [],
+  "network_policy": "allow_none",
+  "required_secrets": [],
+  "digest": "abc123..."
+}
+```
+
+The digest is computed from all fields above. It is stored in the baseline at save time and verified during comparison:
+- **Different adapter digest** → comparison classifies as `adapter_changed` (not a regression)
+- **`--allow-adapter-change`** suppresses the error for intentional adapter swaps
 
 ## Versioning
 

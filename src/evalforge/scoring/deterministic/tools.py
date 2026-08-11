@@ -48,8 +48,11 @@ class ToolCorrectnessScorer(Scorer):
         }
         known = allowed | {t.name for t in scenario.disallowed_tools or []}
         unknown = called - known
-        total = len(called) or 1
-        score = max(0.0, 1.0 - len(unknown) / total) if known else 1.0
+        if not called and known:
+            score = 0.0
+        else:
+            total = len(called) or 1
+            score = max(0.0, 1.0 - len(unknown) / total)
         threshold = metric_config.get("threshold", 1.0)
         passed = score >= threshold
         return ScoreResult(

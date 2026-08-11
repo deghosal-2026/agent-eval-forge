@@ -78,9 +78,10 @@ class LangGraphAdapter(Adapter):
                     elif "model" not in kw and "model_name" not in kw:
                         kw["model"] = model
                     return _orig(self, *a, **kw)
-                _CO.__init__ = _patched
-                _CO._evalforge_patched = True
-        except Exception:
+                patch_target: Any = _CO
+                patch_target.__init__ = _patched
+                patch_target._evalforge_patched = True
+        except Exception:  # noqa: S110
             pass
 
         module_name = config.get("module")
@@ -133,7 +134,11 @@ class LangGraphAdapter(Adapter):
                                 checkpointer = MemorySaver()
                             except Exception:
                                 checkpointer = None
-                        agent = built.compile(checkpointer=checkpointer) if checkpointer is not None else built.compile()
+                        agent = (
+                            built.compile(checkpointer=checkpointer)
+                            if checkpointer is not None
+                            else built.compile()
+                        )
                     except Exception:
                         agent = built
                 else:

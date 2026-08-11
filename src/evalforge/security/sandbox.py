@@ -170,6 +170,9 @@ def run_in_container(
     # for the Docker sandbox to prevent accidental FS writes. The tmpfs is
     # ephemeral and limited to 64MB, so no realistic risk of filling /tmp.
     docker_args.extend(["--tmpfs", "/tmp:noexec,nosuid,size=64m"])  # noqa: S108
+    # Override the image's ENTRYPOINT so agent_cmd runs directly, not as
+    # arguments to the entrypoint binary (e.g. evalforge).
+    docker_args.extend(["--entrypoint", ""])
     docker_args.append(config.image)
     docker_args.extend(agent_cmd)
 

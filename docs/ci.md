@@ -5,10 +5,12 @@
 EvalForge provides first-class support for continuous integration pipelines.
 When running under CI, use the `--ci` flag to:
 
-- **Structured exit codes**: Exit 0 on all pass, exit 1 on any failure (regression, crash, or threshold miss). Non-CI runs always exit 0.
+- **Structured exit codes**: Exit 0 on all pass, exit 1 on any failure (regression, crash, or threshold miss), exit 3 on judge error, exit 4 on safety violation. Exit code 5 signals a critical divergence when using `--fail-on-divergence critical`. Exit codes are always propagated regardless of `--ci` flag.
 - **Structured JSON output**: Use `--output-format json` to produce machine-parseable results.
 - **GitHub Actions annotations**: Use `--output-format github-actions` to emit workflow commands that annotate PRs with check annotations directly on the source file.
 - **Suppress interactive features**: The `--ci` flag disables progress spinners, color output, and other TTY-only features.
+
+EvalForge's CI gating implements **Layer 2** of the [two-layer defense model](architecture.md): your agent's own tests catch judgment errors, and EvalForge catches integration failures, safety violations, and regressions that a judgment evaluator cannot see.
 
 ## Pre-flight Validation
 
@@ -71,12 +73,63 @@ To detect regressions, compare results against a saved baseline:
 evalforge run --pack scenarios/core-launch.yaml --agent python:v1.0 --output baselines/
 
 # In CI, compare current run against baseline
-evalforge compare --current .evalforge/runs/ --baseline baselines/ --format github-actions
+evalforge compare --candidate .evalforge/runs/run-abc --baseline v1.0.0 --pack scenarios/core-launch.yaml --output-format github-actions
 ```
 
 The `compare` command exits non-zero when scores drop below the configured
 threshold, which fails the CI step. Thresholds are defined per-scenario in
 the pack YAML under `thresholds.min_score`.
+
+### Three-gate scoring (v0.2.0)
+
+Scores are split into three independent dimensions — `compatibility`, `safety`,
+and `quality` — so each can be gated separately and a failure is attributable to
+the right team:
+
+```bash
+# Gate each dimension independently (fails if score < 0.8)
+evalforge run --pack scenarios/core-launch.yaml --agent python:my_agent.py --ci --fail-on compatibility
+evalforge run --pack scenarios/core-launch.yaml --agent python:my_agent.py --ci --fail-on safety
+evalforge run --pack scenarios/core-launch.yaml --agent python:my_agent.py --ci --fail-on quality
+
+# Or gate all three at once
+evalforge run --pack scenarios/core-launch.yaml --agent python:my_agent.py --ci --fail-on all
+```
+
+The `github-actions` output format reports all three dimensions so PR annotations
+show where the failure is:
+
+```
+| Score | 0.72 |
+| Compatibility | 1.00 |
+| Safety | 0.50 |
+| Quality | 0.83 |
+```
+
+### Divergence gating (v0.2.0)
+
+Gate on divergences where the deterministic checks and the LLM judge disagree:
+
+```bash
+# Fail on critical divergences (deterministic fail + LLM pass), exit code 5
+evalforge run --pack scenarios/core-launch.yaml --agent python:my_agent.py --ci --fail-on-divergence critical
+```
+
+### Adapter and model change detection (v0.2.0)
+
+The comparison engine treats an adapter or model swap as distinct from a real
+regression:
+
+- **Adapter change** — baseline and candidate adapter digests differ → classified
+  as `adapter_changed`, not a regression. Override with `--allow-adapter-change`
+  for intentional swaps:
+
+  ```bash
+  evalforge compare --candidate .evalforge/runs/run-abc --baseline v1.0.0 --pack scenarios/core-launch.yaml --allow-adapter-change
+  ```
+
+- **Model change** — candidate model differs from the baseline model → classified
+  as `model_changed`, not a regression.
 
 ## GitHub Actions Example
 
@@ -88,6 +141,8 @@ A complete workflow template is available at
   on failure
 - Set `checks: write` in `permissions` to enable PR annotations
 - Run `validate` before `run` to fail fast on configuration errors
+- Upload `run-manifest.json` artifacts (auto-emitted by default) for
+  reproducibility; use `--no-manifest` to skip in privacy-sensitive pipelines
 
 ### Docker-Based Sandbox Test (Linux)
 
@@ -249,6 +304,15 @@ You can evaluate public example agents for LangGraph and PydanticAI. Two approac
    ```bash
    uv sync --extra langgraph --extra pydanticai
    uv run pytest tests/test_adapters_integration.py -q
+   ```
+
+   For new adapter families (v0.2+), install the matching extras:
+   ```bash
+   uv sync --extra smolagents   # smolagents (Hugging Face)
+   uv sync --extra autogen      # AutoGen
+   uv sync --extra llamaindex   # LlamaIndex
+   uv sync --extra claude       # Claude Agent SDK
+   uv sync --extra adk          # Google ADK
    ```
 
 2) Evaluate public examples from docs/repos (best-effort; may be flaky if upstreams change):

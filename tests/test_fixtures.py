@@ -93,3 +93,34 @@ def test_inject_fixtures_skipped_when_not_fixture_mode(tmp_path: Path) -> None:
     config: dict = {}
     _inject_fixtures(payload, config)
     assert "_fixture_mode" not in payload
+
+
+def test_tool_stub_deterministic_hash(tmp_path: Path) -> None:
+    fixture_file = tmp_path / "hash_tool.json"
+    fixture_file.write_text(json.dumps([{"r": "a"}, {"r": "b"}, {"r": "c"}]))
+    stub = ToolStub(fixtures_dir=str(tmp_path))
+    r1 = stub.intercept("hash_tool", {"x": 1})
+    r2 = stub.intercept("hash_tool", {"x": 1})
+    assert r1 == r2
+
+
+def test_tool_stub_verify_consumed(tmp_path: Path) -> None:
+    for name in ("used_tool", "unused_tool"):
+        (tmp_path / f"{name}.json").write_text(json.dumps({"ok": True}))
+    stub = ToolStub(fixtures_dir=str(tmp_path))
+    stub.declare_expected({"used_tool", "unused_tool"})
+    stub.intercept("used_tool")
+    warnings = stub.verify_consumed()
+    assert len(warnings) == 1
+    assert "unused_tool" in warnings[0]
+
+
+def test_tool_stub_delay_ms(tmp_path: Path) -> None:
+    import time
+    fixture_file = tmp_path / "delayed_tool.json"
+    fixture_file.write_text(json.dumps({"result": "slow", "delay_ms": 50}))
+    stub = ToolStub(fixtures_dir=str(tmp_path))
+    start = time.time()
+    stub.intercept("delayed_tool")
+    elapsed = (time.time() - start) * 1000
+    assert elapsed >= 40

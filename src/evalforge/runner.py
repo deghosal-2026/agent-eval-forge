@@ -30,8 +30,10 @@ from typing import Any
 from evalforge.adapters.base import _sanitize_agent
 from evalforge.adapters.factory import create_adapter
 from evalforge.loading.pack_loader import load_pack
-from evalforge.models.artifact import RunArtifact
+from evalforge.models.artifact import RunArtifact, TrajectoryStep
+from evalforge.models.manifest import build_manifest
 from evalforge.models.pack import ScenarioPack
+from evalforge.models.trace import compute_trace_diff
 from evalforge.observability.metrics import EvalMetrics, MetricsCollector
 
 logger = logging.getLogger("evalforge.runner")
@@ -116,7 +118,53 @@ class Runner:
             raise ValueError(f"unknown scenario id: {scenario_id}")
         rid = run_id or generate_run_id()
         config = {**self.agent_config, "run_id": rid}
-        return self.adapter.run(scenario, config)
+        artifact = self.adapter.run(scenario, config)
+        trace_diff = compute_trace_diff(
+            artifact_has_trajectory=bool(artifact.trajectory),
+            artifact_status=artifact.status,
+            trajectory_len=len(artifact.trajectory),
+        )
+        if trace_diff is not None:
+            artifact = artifact.model_copy(update={"trace_diff": trace_diff})
+        if config.get("fixtures"):
+            artifact = self._annotate_fixture_usage(artifact, config)
+        return artifact
+
+    def _annotate_fixture_usage(
+        self, artifact: RunArtifact, config: dict[str, Any]
+    ) -> RunArtifact:
+        """Add ``fixture_used`` note steps for each consumed fixture.
+
+        Scans the artifact's trajectory for ``tool_call`` steps whose tool
+        name matches an available fixture file and appends a ``note`` step
+        for each match.
+        """
+        try:
+            from evalforge.fixtures import ToolStub
+
+            stub = ToolStub(
+                fixtures_dir=config.get("fixtures_dir", "scenarios/fixtures")
+            )
+            available = stub.available_tools()
+            consumed: set[str] = set()
+            for step in artifact.trajectory:
+                if step.type == "tool_call" and step.tool in available:
+                    consumed.add(step.tool)
+            if consumed:
+                extra_steps = [
+                    TrajectoryStep(type="note", content=f"fixture_used: {t}")
+                    for t in sorted(consumed)
+                ]
+                artifact = artifact.model_copy(
+                    update={
+                        "trajectory": list(artifact.trajectory) + extra_steps
+                    }
+                )
+        except Exception:
+            logger.warning(
+                "failed to annotate fixture usage", exc_info=True
+            )
+        return artifact
 
     def run_all(
         self,
@@ -124,6 +172,7 @@ class Runner:
         run_id: str | None = None,
         workers: int = 1,
         max_outstanding: int | None = None,
+        emit_manifest: bool = True,
     ) -> list[RunArtifact]:
         """Run all scenarios (optionally filtered by tags) and save results."""
         pack = self.pack
@@ -186,7 +235,10 @@ class Runner:
                         duration,
                     )
 
-        self._save_run(rid, artifacts, pack, scenarios, tags, start_iso, start_ms)
+        self._save_run(
+            rid, artifacts, pack, scenarios, tags, start_iso, start_ms,
+            emit_manifest=emit_manifest,
+        )
         return artifacts
 
     def _run_parallel(
@@ -286,6 +338,7 @@ class Runner:
         tags: list[str] | None,
         start_iso: str,
         start_ms: int,
+        emit_manifest: bool = True,
     ) -> None:
         run_dir = self.output_dir / "runs" / run_id
         artifacts_dir = run_dir / "artifacts"
@@ -321,3 +374,21 @@ class Runner:
             "artifacts": {a.scenario_id: f"artifacts/{a.scenario_id}.json" for a in artifacts},
         }
         (run_dir / "run.json").write_text(json.dumps(index, indent=2), encoding="utf-8")
+
+        if emit_manifest:
+            tool_call_count = sum(
+                sum(1 for s in a.trajectory if s.type == "tool_call")
+                for a in artifacts
+            )
+            manifest = build_manifest(
+                run_id=run_id,
+                agent_config=_sanitize_agent(self.agent_config),
+                execution={
+                    "duration_ms": _now_ms() - start_ms,
+                    "tool_call_count": tool_call_count,
+                    "scenario_count": len(artifacts),
+                },
+            )
+            (run_dir / "run-manifest.json").write_text(
+                manifest.model_dump_json(indent=2), encoding="utf-8"
+            )

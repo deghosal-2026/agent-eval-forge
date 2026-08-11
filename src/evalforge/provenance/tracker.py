@@ -85,7 +85,7 @@ class ProvenanceTracker:
 
         if pack_path.endswith((".yaml", ".yml", ".json")):
             try:
-                import yaml  # type: ignore[import-untyped]
+                import yaml
                 with open(pack_path, encoding="utf-8") as fh:
                     data = yaml.safe_load(fh)
                 pack_meta = data.get("pack", {}) if isinstance(data, dict) else {}
@@ -249,7 +249,7 @@ def _get_dependencies() -> dict[str, str]:
 def _get_git_sha() -> str:
     """Return the current HEAD commit SHA, or empty string on failure."""
     try:
-        result = subprocess.run(  # noqa: S603
+        result = subprocess.run(
             ["git", "rev-parse", "HEAD"],  # noqa: S607
             capture_output=True,
             text=True,

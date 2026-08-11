@@ -12,9 +12,12 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import click
+
+if TYPE_CHECKING:
+    from evalforge.models.artifact import RunArtifact
 
 
 @click.command()
@@ -37,8 +40,13 @@ import click
     help="Output directory where baselines are stored",
 )
 @click.option(
+    "--allow-adapter-change",
+    is_flag=True,
+    help="Suppress adapter change detection for intentional adapter swaps",
+)
+@click.option(
     "--output-format",
-    type=click.Choice(["json", "markdown", "terminal"]),
+    type=click.Choice(["json", "markdown", "terminal", "github-actions"]),
     default="terminal",
     show_default=True,
 )
@@ -47,6 +55,7 @@ def compare(
     baseline: str,
     pack: str,
     output_dir: str,
+    allow_adapter_change: bool,
     output_format: str,
 ) -> None:
     """Compare a candidate run against a golden baseline.
@@ -91,16 +100,16 @@ def compare(
 
     # Load candidate scores either from saved scores.json or by re-scoring artifacts
     scores_json = run_dir / "scores.json"
+    artifact_dir = run_dir / "artifacts"
+    artifacts: list[RunArtifact] = []
+    if artifact_dir.exists():
+        for af in sorted(artifact_dir.glob("*.json")):
+            artifacts.append(RunArtifact(**json.loads(af.read_text())))
     if scores_json.exists():
         data = json.loads(scores_json.read_text())
         candidate_score = _runscore_from_dict(data)
     else:
         # Fall back to re-scoring raw artifacts from the candidate run
-        artifact_dir = run_dir / "artifacts"
-        artifacts: list[RunArtifact] = []
-        if artifact_dir.exists():
-            for af in sorted(artifact_dir.glob("*.json")):
-                artifacts.append(RunArtifact(**json.loads(af.read_text())))
         engine = ScoringEngine(scenario_pack)
         candidate_score = engine.score_run(artifacts)
 
@@ -114,7 +123,10 @@ def compare(
 
     # Re-score the baseline's artifacts to produce a RunScore for comparison
     engine = ScoringEngine(scenario_pack)
-    baseline_score = engine.score_run(baseline_obj.runs)
+    if baseline_obj.score_snapshot:
+        baseline_score = _runscore_from_dict(baseline_obj.score_snapshot)
+    else:
+        baseline_score = engine.score_run(baseline_obj.runs)
 
     # Compute three-level deltas
     comp_engine = ComparisonEngine(scenario_pack)
@@ -122,6 +134,9 @@ def compare(
         baseline_score=baseline_score,
         candidate_score=candidate_score,
         baseline=baseline_obj,
+        candidate_artifacts=artifacts,
+        candidate_adapter_manifest=_candidate_adapter_manifest(artifacts),
+        allow_adapter_change=allow_adapter_change,
     )
 
     # Build and output the comparison report
@@ -134,6 +149,34 @@ def compare(
 
     formatter = OutputFormatter(output_format)
     formatter.format_comparison(report, output_path=f"{candidate}/comparison.md")
+
+    raise SystemExit(candidate_score.exit_code)
+
+
+def _candidate_adapter_manifest(artifacts: list[RunArtifact]) -> dict[str, Any] | None:
+    """Build an adapter manifest for the candidate run from its artifacts.
+
+    The candidate run directory does not persist its own adapter manifest, so
+    it is reconstructed from the first artifact's sanitized ``agent`` dict
+    (which carries the adapter ``type``). Returns None if no artifact exposes
+    an adapter type.
+
+    Args:
+        artifacts: The candidate's RunArtifacts.
+
+    Returns:
+        A minimal adapter manifest with name/type and a digest, or None.
+    """
+    from evalforge.adapters.base import Adapter
+    from evalforge.adapters.factory import ADAPTERS, create_adapter
+
+    for art in artifacts:
+        adapter_type = (art.agent or {}).get("type")
+        if adapter_type in ADAPTERS:
+            adapter = create_adapter({"type": adapter_type})
+            if isinstance(adapter, Adapter):
+                return adapter.get_manifest()
+    return None
 
 
 def _runscore_from_dict(data: dict[str, Any]) -> Any:

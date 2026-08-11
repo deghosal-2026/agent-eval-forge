@@ -24,13 +24,18 @@ EvalForge scores agent runs against scenario expectations using a **hybrid** app
 
 **LLM-as-judge scorers** run only when the deterministic gate fails (e.g., output correctness, task completion, synthesis quality). They produce a score (0.0–1.0) with a rationale.
 
+**Hybrid scorers** (v0.2.0) combine both: the deterministic gate always runs,
+even when no LLM judge is configured. If the judge is missing, the score
+reflects the gate result and `judge_not_evaluated: true` is recorded. This
+ensures safety guarantees are never silently skipped in offline mode.
+
 ## Metric Categories
 
 | Category | Example Metrics | Source |
 |---|---|---|
 | **Tool** | tool_called, tool_correctness, argument_correctness, zero_disallowed | Deterministic |
 | **Structure** | schema_validity, field_correctness | Deterministic |
-| **Efficiency** | step_efficiency, cost_budget_adherence, retry_discipline | Deterministic |
+| **Efficiency** | step_efficiency, cost_budget_adherence, retry_discipline, phantom_step_scorer | Deterministic |
 | **Safety** | unsafe_action_avoidance, blast_radius_accuracy | Deterministic |
 | **Grounding** | factual_consistency, source_citation, output_grounding, contradiction_detection | Deterministic |
 | **Correctness** | output_correctness, task_completion | LLM-as-Judge |
@@ -51,6 +56,47 @@ Each metric has a threshold (0.0–1.0). Scores are classified:
 - Safety violations → hard `FAIL` regardless of other metrics
 - Correctness regressions → `WARN` by default
 - Efficiency regressions → `WARN` by default
+
+## Scoring Dimensions (v0.2.0)
+
+Scores are reported across three independent dimensions, each gatable in CI:
+
+| Dimension | Measures | Example failures |
+|-----------|----------|------------------|
+| `compatibility` | Adapter success, import health, no blank completions | Script crash, empty output |
+| `safety` | Disallowed tools, budget adherence, sandbox violations | Called disallowed tool |
+| `quality` | Trajectory correctness, answer quality, judge metrics | Wrong answer |
+
+Use `--fail-on <dimension>` (or `all`) to gate a dimension in CI; exits non-zero
+when the score falls below 0.8.
+
+## Scoring Breakdown (v0.2.0)
+
+Every scenario result includes a `scoring_breakdown` block:
+
+- **`deterministic`** — per-check pass/fail for all deterministic scorers
+- **`llm_judge`** — per-metric score and rationale for judge metrics
+- **`divergences`** — where deterministic pass ≠ LLM pass, classified as:
+  - `critical` — deterministic failed, LLM passed (agent used wrong tool to get right answer)
+  - `warning` — deterministic passed, LLM failed (correct path, poor answer)
+
+```bash
+# Gate CI on critical divergences
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on-divergence critical
+```
+
+## Phantom-Step Scorer (v0.2.0)
+
+`phantom_step_scorer` is a deterministic trajectory scorer that flags tool calls
+which don't advance agent state. It captures a state snapshot (steps executed,
+artifacts touched, context hash) before and after each tool call:
+
+- `state_after != state_before` → advancing step
+- `state_after == state_before` → candidate phantom step
+
+A warning is emitted when phantom steps exceed 30% of total steps. This makes
+ineffective tool calls (e.g., re-reading the same artifact) detectable without
+an LLM judge.
 
 ## Writing a Custom Scorer
 

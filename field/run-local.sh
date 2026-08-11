@@ -17,7 +17,7 @@
 #
 # Secrets: API key comes from OPENROUTER_API_KEY env var. Never logged.
 #
-set -euo pipefail
+set -uo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
@@ -211,7 +211,7 @@ export EVALFORGE_FIELD_WORKER="$PROJECT_DIR/field/agent_worker.py"
 
   # Local tier: point agents at OMLX (ChatOpenAI-compatible)
   if [[ "$TIER" == "local" ]]; then
-    export EVALFORGE_FIELD_MODEL="Qwen3.5-4B-4bit"
+    export EVALFORGE_FIELD_MODEL="${MODEL_ID:-Qwen3.5-4B-4bit}"
     export EVALFORGE_FIELD_ENDPOINT="http://127.0.0.1:8000/v1"
     # Force model override in langgraph adapter to neutralize hardcoded OpenAI model names
     export EVALFORGE_FORCE_MODEL=1
@@ -381,7 +381,7 @@ JSONL
       export EVALFORGE_FIELD_AGENT="$slug"
       export EVALFORGE_FIELD_OUTPUT_DIR="$test_dir/evalforge"
       export EVALFORGE_FIELD_PACK="$SCENARIO_DIR/$pack_file"
-      export PYTHONPATH="$PROJECT_DIR/field/agents/$slug:${PYTHONPATH:-}"
+      export PYTHONPATH="$PROJECT_DIR/field/agents/$slug"
       PYTEST_CMD=(
         uv run pytest
         -p evalforge.pytest_plugin

@@ -75,7 +75,9 @@ pip install agent-eval-forge
 With framework adapters:
 
 ```bash
-pip install agent-eval-forge[langgraph,pydanticai]
+pip install agent-eval-forge[langgraph,pydanticai,crewai,openai-agents]
+pip install agent-eval-forge[smolagents,autogen,llamaindex,claude,adk]
+pip install agent-eval-forge[all]    # all adapter families
 ```
 
 With judge backends:
@@ -95,7 +97,7 @@ Verify:
 
 ```bash
 $ evalforge version
-0.1.0
+0.2.0
 ```
 
 ---
@@ -228,6 +230,13 @@ thresholds. Those stay inside EvalForge.
 | `http` | `http:http://localhost:8000/run` | Agents behind HTTP servers |
 | `langgraph` | `langgraph:my_pkg.graph:build_agent` | LangGraph agents |
 | `pydantic-ai` | `pydanticai:my_pkg.agent:build_agent` | PydanticAI agents |
+| `crewai` | `crewai:module:crew` | CrewAI agents |
+| `openai-agents` | `openai-agents:module:agent` | OpenAI Agents SDK agents |
+| `smolagents` | `smolagents:module:build_agent` | smolagents (Hugging Face) agents |
+| `autogen` | `autogen:module:build_agent` | AutoGen agents |
+| `llamaindex` | `llamaindex:module:build_agent` | LlamaIndex agents |
+| `claude` | `claude:module:build_agent` | Claude Agent SDK agents |
+| `adk` | `adk:module:build_agent` | Google ADK agents |
 
 ### 3.4 Scoring Engine
 
@@ -374,6 +383,27 @@ evalforge run \
   --agent "python:my_pkg.agent:run"
 ```
 
+The `python:` agent spec supports `python:module:function`. The function name
+defaults to `run` when omitted, and can be overridden separately:
+
+```bash
+# Explicit function in the spec
+evalforge run --pack my-pack.yaml --agent "python:my_pkg.agent:handle_request"
+
+# Backward compatible — defaults to run()
+evalforge run --pack my-pack.yaml --agent "python:my_pkg.agent"
+
+# Override the function name via flag
+evalforge run --pack my-pack.yaml --agent "python:my_pkg.agent" --agent-function handle_request
+```
+
+You can also declare the agent model explicitly (useful when the model can't be
+auto-detected from the agent config, and for comparison attribution):
+
+```bash
+evalforge run --pack my-pack.yaml --agent "python:my_pkg.agent:run" --model gpt-4o
+```
+
 ### 5.2 With an LLM judge
 
 ```bash
@@ -381,6 +411,23 @@ evalforge run \
   --pack scenarios/core-launch.yaml \
   --agent "langgraph:my_pkg.graph:build_agent" \
   --judge openai:gpt-4o-mini
+```
+
+```bash
+# smolagents
+evalforge run --pack my-pack.yaml --agent "smolagents:my_pkg.agent:build_agent" --judge openai:gpt-4o-mini
+
+# AutoGen
+evalforge run --pack my-pack.yaml --agent "autogen:my_pkg.agent:build_agent" --judge openai:gpt-4o-mini
+
+# LlamaIndex
+evalforge run --pack my-pack.yaml --agent "llamaindex:my_pkg.agent:build_agent" --judge openai:gpt-4o-mini
+
+# Claude Agent SDK
+evalforge run --pack my-pack.yaml --agent "claude:my_pkg.agent:build_agent" --judge openai:gpt-4o-mini
+
+# Google ADK
+evalforge run --pack my-pack.yaml --agent "adk:my_pkg.agent:build_agent" --judge openai:gpt-4o-mini
 ```
 
 Required env var: `OPENAI_API_KEY` (or `ANTHROPIC_API_KEY` for Anthropic).
@@ -457,7 +504,30 @@ evalforge run \
 - Enables structured exit codes (0 = pass, 1+ = failure type)
 - Writes to `$GITHUB_STEP_SUMMARY` when available
 
-### 5.8 Programmatic use
+### 5.8 Gate on score dimensions
+
+```bash
+# Fail the run if the safety dimension drops below 0.8
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on safety
+
+# Gate all three dimensions
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on all
+```
+
+`--fail-on` accepts `compatibility`, `safety`, `quality`, or `all`, and exits
+non-zero (code 1) when the dimension score falls below 0.8.
+
+### 5.9 Gate on scorer divergences
+
+```bash
+# Fail when a deterministic check fails but the LLM judge passes (critical)
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on-divergence critical
+```
+
+`--fail-on-divergence` accepts `critical`, `warning`, or `all`. Critical
+divergences exit with code 5.
+
+### 5.10 Programmatic use
 
 ```python
 from evalforge import runner
@@ -471,7 +541,7 @@ result = runner.run(
 print(result.summary.passed, result.summary.failed)
 ```
 
-### 5.9 Pytest plugin
+### 5.11 Pytest plugin
 
 ```bash
 evalforge test run scenarios/
@@ -509,14 +579,19 @@ def test_my_scenario():
 | 2 | Runtime error | Crash, timeout, adapter failure |
 | 3 | Judge error | LLM call failed, no verdict |
 | 4 | Safety violation | Disallowed tool called |
+| 5 | Critical divergence | Deterministic fail + LLM pass (v0.2.0) |
 
 > **Gotcha:** Exit code 4 always overrides other failures. If one scenario
 > has a safety violation and another has a correctness regression, you get
 > exit code 4.
 >
-> **Gotcha:** In non-CI mode, `evalforge run` **always** exits 0 — even if
-> scenarios fail. Use `--ci` for structured exit codes, or check the JSON
-> output.
+> **Gotcha:** Exit code 5 (critical divergence) is only produced by
+> `--fail-on-divergence critical`. It is separate from the scenario-level
+> exit code resolution.
+>
+> **Gotcha:** Exit codes are always propagated: 0 on pass, 1 on failure,
+> 3 on judge error, 4 on safety violation. Use `--output-format json` for
+> machine-readable output.
 
 ### 6.3 Score thresholds
 
@@ -528,7 +603,20 @@ Each metric has a threshold (0.0–1.0):
 | >= threshold × 0.7 | WARN — close to failure, review needed |
 | < threshold × 0.7 | FAIL |
 
-### 6.4 Artifact structure
+### 6.4 Scoring breakdown (v0.2.0)
+
+Each scenario result includes a `scoring_breakdown` block with per-check
+deterministic scores, per-metric judge scores, and divergences between them:
+
+```
+  Score: 0 | Deterministic: 14/17 | LLM Judge: 8/11 | Divergences: 2 critical, 1 warning
+```
+
+Divergences are classified as:
+- **critical** — deterministic check failed but LLM judge passed (agent used wrong tool to get right answer)
+- **warning** — deterministic check passed but LLM judge failed (correct path, poor answer)
+
+### 6.5 Artifact structure
 
 Every run writes to `.evalforge/runs/<run_id>/`:
 
@@ -537,6 +625,7 @@ Every run writes to `.evalforge/runs/<run_id>/`:
   runs/
     run-20260802-143022-a1b2/
       run.json              # Pack-level index
+      run-manifest.json     # Reproducibility manifest (v0.2.0)
       artifacts/
         weather-check.json  # Per-scenario artifact with full trajectory
   baselines/
@@ -548,7 +637,10 @@ Every run writes to `.evalforge/runs/<run_id>/`:
 Each artifact contains the full agent trajectory (tool calls, arguments,
 results, timing), cost breakdown, and per-metric scores with rationales.
 
-### 6.5 Failure taxonomy
+The `run-manifest.json` captures OS, arch, Python version, dependency tree, and
+agent metadata for reproducibility. Use `--no-manifest` to suppress.
+
+### 6.6 Failure taxonomy
 
 EvalForge auto-classifies failures. Access programmatically:
 
@@ -588,7 +680,27 @@ Categories include: `safety_violation`, `policy_violation`, `hallucination`,
 A full workflow template is at `.github/workflows/ci-evalforge.yml` — includes
 artifact upload, Docker sandbox, and PR annotations.
 
-### 7.2 GitLab CI
+### 7.2 Three-way dimension gating
+
+Scores are split into three independent dimensions — `compatibility`, `safety`,
+and `quality` — so a CI failure is attributable to the right team. Gate each
+independently:
+
+```bash
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on compatibility
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on safety
+evalforge run --pack my-pack.yaml --agent python:my_agent.py --ci --fail-on quality
+```
+
+The CLI summary reports all three:
+
+```
+Passed: 8, Warned: 1, Failed: 1
+  Dimensions: compatibility=1.00, safety=0.50, quality=0.83
+  Exit code: 1
+```
+
+### 7.3 GitLab CI
 
 ```yaml
 evalforge:
@@ -601,7 +713,7 @@ evalforge:
 
 Full template at `.gitlab-ci.yml`.
 
-### 7.3 Fixture-based smoke test (no API keys)
+### 7.4 Fixture-based smoke test (no API keys)
 
 For fast CI gating without LLM costs:
 
@@ -617,7 +729,7 @@ evalforge run \
 Runs deterministic scorers only — no judge calls, no API keys needed. Ideal for
 per-commit smoke checks.
 
-### 7.4 Docker-based sandbox (Linux)
+### 7.5 Docker-based sandbox (Linux)
 
 For evaluating untrusted agents with full network isolation:
 
@@ -787,10 +899,9 @@ Only `[A-Za-z0-9_-]` allowed. Dots, spaces, and special characters in scenario
 IDs will be rejected at validation. Use hyphens: `retrieval-01`, not
 `retrieval.01` or `retrieval 01`.
 
-### 10.9 Exit code 0 doesn't always mean "pass"
+### 10.9 Exit codes
 
-In non-CI mode, `evalforge run` **always** exits 0 — even if scenarios fail. Use
-`--ci` for structured exit codes, or check the JSON output:
+Exit codes are always propagated regardless of `--ci` flag: 0 on pass, 1 on failure, 3 on judge error, 4 on safety violation.
 
 ```bash
 # CI mode (exit non-zero on failure)
@@ -807,7 +918,15 @@ evalforge run --pack my-pack.yaml --agent python:my_agent.py --output-format jso
 | `snapshot` | `--compare-mode snapshot` (default) | Compares saved scores from baseline run. Fast, no new judge calls. CI-friendly. |
 | `rescore` | `--compare-mode rescore` | Re-runs judge on both artifacts. Use when the judge model has changed. |
 
-### 10.11 Caches are automatic but clearable
+### 10.11 Adapter and model changes are detected, not hidden
+
+The comparison engine distinguishes an adapter or model swap from a real agent
+regression:
+
+- **Adapter changed** (digest differs) → classified as `adapter_changed`, not a regression. Use `--allow-adapter-change` to suppress.
+- **Model changed** (e.g. `gpt-4o` → `gpt-4o-mini`) → classified as `model_changed`, not a regression. Declare the model with `--model` if it can't be auto-detected.
+
+### 10.12 Caches are automatic but clearable
 
 Three caches work silently:
 
@@ -824,7 +943,7 @@ evalforge cache clear --cache-type judge
 evalforge cache stats
 ```
 
-### 10.12 Field tests ≠ product runs
+### 10.13 Field tests ≠ product runs
 
 The `field/` harness is a smoke rig for third-party repos — adapter wiring,
 artifact capture, deterministic scorers. It uses `MockJudge`. Product runs use
@@ -908,9 +1027,9 @@ a commented example.
 
 | Command | Purpose |
 |---|---|
-| `evalforge run` | Run a scenario pack against an agent |
+| `evalforge run` | Run a scenario pack against an agent. Supports `--agent-function`, `--model`, `--fail-on` (compatibility/safety/quality/all), `--fail-on-divergence` (critical/warning/all), `--no-manifest`, `--telemetry` |
 | `evalforge validate` | Validate packs, agents, baselines |
-| `evalforge compare` | Compare candidate vs baseline |
+| `evalforge compare` | Compare candidate vs baseline. Supports `--allow-adapter-change` |
 | `evalforge baseline save` | Save run results as a named baseline |
 | `evalforge baseline list` | List all baselines |
 | `evalforge baseline describe` | Show baseline metadata, tags, annotations |
@@ -935,9 +1054,16 @@ a commented example.
 | Scoring deep dive — judge config, custom scorers, failure taxonomy | `docs/scoring.md` |
 | LangGraph adapter | `docs/adapters/langgraph.md` |
 | PydanticAI adapter | `docs/adapters/pydantic-ai.md` |
+| CrewAI adapter | `docs/adapters/crewai.md` |
+| OpenAI Agents SDK adapter | `docs/adapters/openai-agents.md` |
+| smolagents adapter | `docs/adapters/smolagents.md` |
+| AutoGen adapter | `docs/adapters/autogen.md` |
+| LlamaIndex adapter | `docs/adapters/llamaindex.md` |
+| Claude Agent SDK adapter | `docs/adapters/claude.md` |
+| Google ADK adapter | `docs/adapters/adk.md` |
 | Custom adapters | `docs/adapters/custom.md` |
 | External benchmarks (SWE-bench, WebArena) | `docs/adapters/benchmarks.md` |
 | CI setup | `docs/ci.md` |
-| Security model | `docs/security-review.md` |
+| Security model | `docs/0.2.0/security-review.md` |
 | Real-world integration and design lessons | `docs/hard-won-lessons.md` |
 | Field test reports | `docs/field-test-report-*.md` |

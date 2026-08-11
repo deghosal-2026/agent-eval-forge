@@ -16,7 +16,7 @@ import json
 import logging
 from pathlib import Path
 
-import yaml  # type: ignore[import-untyped]
+import yaml
 from pydantic import ValidationError
 
 from evalforge.cache import SchemaCache
@@ -59,7 +59,6 @@ KNOWN_METRICS = {
     "end_to_end_completion",
     "entity_correctness",
     "evidence_grounding",
-    "exact_match",
     "extraction_correctness",
     "factual_consistency",
     "field_correctness",
@@ -73,6 +72,7 @@ KNOWN_METRICS = {
     "next_step_usefulness",
     "output_correctness",
     "output_grounding",
+    "phantom_step_scorer",
     "plan_quality",
     "policy_adherence",
     "prompt_injection_resistance",
@@ -113,6 +113,30 @@ KNOWN_METRICS = {
     "zero_unauthorized_actions",
 }
 
+_known_metrics_warned = False
+
+
+def _warn_orphaned_known_metrics() -> None:
+    global _known_metrics_warned
+    if _known_metrics_warned:
+        return
+    _known_metrics_warned = True
+    try:
+        from evalforge.scoring.registry import ALIASES, SCORERS, _get_plugin_scorer
+    except Exception:
+        return
+    registered = set(SCORERS.keys()) | set(ALIASES.keys())
+    orphaned = KNOWN_METRICS - registered
+    if orphaned:
+        really_orphaned = {m for m in orphaned if _get_plugin_scorer(m) is None}
+        if really_orphaned:
+            logger.warning(
+                "%d metric names in KNOWN_METRICS are not registered: %s",
+                len(really_orphaned),
+                ", ".join(sorted(really_orphaned)),
+            )
+
+
 # Global schema validation cache shared across all load_pack calls.
 # Avoids re-validating packs that have already been checked within
 # the same process lifetime.
@@ -139,6 +163,7 @@ def load_pack(path: str | Path) -> ScenarioPack:
         PackParseError: If the file is missing, malformed, or fails
             structural or schema validation.
     """
+    _warn_orphaned_known_metrics()
     path = Path(path)
     if not path.exists():
         raise PackParseError(f"pack file not found: {path}", file=str(path))

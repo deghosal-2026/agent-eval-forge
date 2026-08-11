@@ -52,8 +52,8 @@ scenarios:
     allowed_tools: []
     disallowed_tools: []
     expected:
-      type: contains
-      value: ["hello"]
+      type: exact
+      value: "hello"
     metrics:
       task_completion:
         threshold: 0.8

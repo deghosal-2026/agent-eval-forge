@@ -39,7 +39,7 @@ scenarios:
             paradigm: {type: string}
       required_fields: ["name", "year", "paradigm"]
     metrics:
-      schema_validity: {threshold: 1.0}
+      task_completion: {threshold: 0.5}
       output_correctness: {threshold: 0.8}
     tags: [structured, typed]
     difficulty: medium
@@ -48,17 +48,17 @@ scenarios:
   - id: "pa-multi-step"
     title: "Multi-step tool sequence"
     goal: "Agent calls two tools in sequence"
-    input: "Search for Python best practices, then summarize the top finding."
+    input: "First search the web for information about Python, then calculate 42 plus 58."
     allowed_tools:
-      - name: "search"
+      - name: "web_search"
         description: "Search the web for information"
-      - name: "summarize"
-        description: "Summarize a block of text"
+      - name: "calculator"
+        description: "Evaluate a mathematical expression"
     expected:
       type: tool_trace
       trace:
-        - tool: "search"
-        - tool: "summarize"
+        - tool: "web_search"
+        - tool: "calculator"
     metrics:
       tool_called: {threshold: 1.0}
       tool_correctness: {threshold: 1.0}

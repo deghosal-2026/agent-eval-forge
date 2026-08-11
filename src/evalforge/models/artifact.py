@@ -82,3 +82,4 @@ class RunArtifact(BaseModel):
     status: Literal["completed", "timeout", "error", "aborted"] = "completed"
     error: str | None = None
     error_category: str | None = None
+    trace_diff: dict[str, Any] | None = None

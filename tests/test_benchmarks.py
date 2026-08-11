@@ -218,14 +218,14 @@ class TestErrorHandling:
         bad_file = tmp_path / "bad.jsonl"
         bad_file.write_text("not json\n", encoding="utf-8")
         loader = BenchmarkLoader()
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             loader.load_swe_bench(bad_file)
 
     def test_invalid_json_raises(self, tmp_path: Path) -> None:
         bad_file = tmp_path / "bad.json"
         bad_file.write_text("{broken", encoding="utf-8")
         loader = BenchmarkLoader()
-        with pytest.raises(Exception):
+        with pytest.raises(Exception):  # noqa: B017
             loader.load_webarena(bad_file)
 
     def test_empty_swe_bench_file(self, tmp_path: Path) -> None:

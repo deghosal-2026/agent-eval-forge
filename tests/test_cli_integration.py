@@ -14,6 +14,7 @@ import sys
 from pathlib import Path
 
 PACK_YAML = Path(__file__).parent / "fixtures" / "valid_pack.yaml"
+ECHO_AGENT = Path(__file__).parent / "fixtures" / "echo_agent.py"
 PROJECT_ROOT = Path(__file__).parent.parent
 SRC_DIR = PROJECT_ROOT / "src"
 
@@ -103,7 +104,7 @@ def test_cli_run_with_sandbox(tmp_path: Path) -> None:
 
 def test_cli_baseline_save_list(tmp_path: Path) -> None:
     """evalforge baseline save and list work with real run data."""
-    echo_agent = f"{sys.executable} tests/fixtures/echo_agent.py"
+    echo_agent = f"{sys.executable} {ECHO_AGENT}"
     cwd = tmp_path / "project"
     cwd.mkdir()
     cp1 = _run_cli(
@@ -131,7 +132,7 @@ def test_cli_baseline_save_list(tmp_path: Path) -> None:
 
 def test_cli_compare(tmp_path: Path) -> None:
     """evalforge compare between two runs produces correct output."""
-    echo_agent = f"{sys.executable} tests/fixtures/echo_agent.py"
+    echo_agent = f"{sys.executable} {ECHO_AGENT}"
     cwd = tmp_path / "project"
     cwd.mkdir()
     # Run twice to get two run directories

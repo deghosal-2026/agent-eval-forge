@@ -40,7 +40,7 @@ uv sync --extra dev
 
 ## Milestone Plan
 
-Development follows the work breakdown in [docs/wbs.md](docs/wbs.md). Pick up open GitHub issues from a milestone and reference the issue number in your PR.
+Development follows the work breakdown in [docs/0.1.0/wbs.md](docs/0.1.0/wbs.md). Pick up open GitHub issues from a milestone and reference the issue number in your PR.
 
 ## License
 

@@ -92,7 +92,11 @@ def _partial_gate() -> Scorer:
 def test_hybrid_gate_inconclusive_falls_back_to_judge() -> None:
     hybrid = HybridScorer("retry_discipline", _partial_gate(), MockJudge(score=0.9))
     art = _artifact()
-    step = type("Step", (), {"type": "tool_call", "tool": "a", "args": {}, "duration_ms": 1})
+    step = type(
+        "Step",
+        (),
+        {"type": "tool_call", "tool": "a", "args": {}, "duration_ms": 1, "error": None},
+    )
     art.trajectory = [step()]
     sc = _scenario(allowed=["a", "b"])
     result = hybrid.score(art, sc, {"threshold": 1.0})

@@ -91,7 +91,7 @@ def test_extract_from_page() -> None:
 
 
 def test_http_recording_and_replay() -> None:
-    recording = HTTPRecording(cassette_dir="/tmp")
+    recording = HTTPRecording(cassette_dir="/tmp")  # noqa: S108
 
     request = {"method": "GET", "uri": "https://api.example.com/data", "headers": {}}
     response = {"status": 200, "headers": {}, "body": '{"items": [1, 2, 3]}'}
@@ -105,7 +105,11 @@ def test_http_recording_and_replay() -> None:
 def test_cassette_save_load_roundtrip(tmp_path: Path) -> None:
     recording = HTTPRecording(cassette_dir=str(tmp_path))
 
-    request = {"method": "POST", "uri": "https://api.example.com/login", "headers": {"Content-Type": "application/json"}}
+    request = {
+        "method": "POST",
+        "uri": "https://api.example.com/login",
+        "headers": {"Content-Type": "application/json"},
+    }
     response = {"status": 200, "headers": {"Set-Cookie": "session=abc"}, "body": '{"token": "xyz"}'}
     recording.record("roundtrip", request, response)
 

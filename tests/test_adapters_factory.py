@@ -28,6 +28,43 @@ def test_create_langgraph() -> None:
     assert isinstance(create_adapter({"type": "langgraph", "module": "x"}), LangGraphAdapter)
 
 
+def test_create_crewai() -> None:
+    from evalforge.adapters.crewai import CrewAIAdapter
+    assert isinstance(create_adapter({"type": "crewai", "module": "x"}), CrewAIAdapter)
+
+
+def test_create_openai_agents() -> None:
+    from evalforge.adapters.openai_agents import OpenAIAgentsAdapter
+    assert isinstance(
+        create_adapter({"type": "openai-agents", "module": "x"}), OpenAIAgentsAdapter
+    )
+
+
+def test_create_smolagents() -> None:
+    from evalforge.adapters.smolagents import SmolagentsAdapter
+    assert isinstance(create_adapter({"type": "smolagents", "module": "x"}), SmolagentsAdapter)
+
+
+def test_create_autogen() -> None:
+    from evalforge.adapters.autogen import AutoGenAdapter
+    assert isinstance(create_adapter({"type": "autogen", "module": "x"}), AutoGenAdapter)
+
+
+def test_create_llamaindex() -> None:
+    from evalforge.adapters.llamaindex import LlamaIndexAdapter
+    assert isinstance(create_adapter({"type": "llamaindex", "module": "x"}), LlamaIndexAdapter)
+
+
+def test_create_claude() -> None:
+    from evalforge.adapters.claude import ClaudeAgentSDKAdapter
+    assert isinstance(create_adapter({"type": "claude", "module": "x"}), ClaudeAgentSDKAdapter)
+
+
+def test_create_adk() -> None:
+    from evalforge.adapters.adk import ADKAdapter
+    assert isinstance(create_adapter({"type": "adk", "module": "x"}), ADKAdapter)
+
+
 def test_unknown_type_raises() -> None:
     with pytest.raises(ValueError, match="unknown adapter type"):
         create_adapter({"type": "nope"})

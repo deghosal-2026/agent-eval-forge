@@ -5,12 +5,15 @@ Covers:
 - BaselineStore save, load, list, missing-name error, and version validation
 - tags and notes fields on Baseline
 - BaselineStore describe, tag, annotate, and delete methods
+- AdapterManifest creation, digest computation, and digest determinism
 """
 
 import pytest
 
+from evalforge.adapters.factory import ADAPTERS
 from evalforge.baselines.model import Baseline
 from evalforge.baselines.store import BaselineStore
+from evalforge.models.adapter_manifest import AdapterManifest
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps
 
 
@@ -213,3 +216,64 @@ def test_baseline_store_annotate_missing_raises(tmp_path) -> None:
     store = BaselineStore(base_dir=str(tmp_path))
     with pytest.raises(FileNotFoundError, match="nope"):
         store.annotate("nope", "notes")
+
+
+def test_adapter_manifest_all_adapters() -> None:
+    """All shipped adapters return valid manifests with required fields."""
+    for name, adapter_cls in ADAPTERS.items():
+        adapter = adapter_cls()
+        manifest = adapter.get_manifest()
+        assert isinstance(manifest, dict), f"{name}: manifest must be dict"
+        assert "name" in manifest, f"{name}: missing 'name'"
+        assert "version" in manifest, f"{name}: missing 'version'"
+        assert "digest" in manifest, f"{name}: missing 'digest'"
+        assert isinstance(manifest["capabilities"], list), f"{name}: capabilities not a list"
+        assert isinstance(manifest["input_schema"], dict), f"{name}: input_schema not a dict"
+        assert isinstance(manifest["output_schema"], dict), f"{name}: output_schema not a dict"
+        assert manifest["tool_event_stream_version"], f"{name}: empty tool_event_stream_version"
+        assert manifest["network_policy"] in {"allow_none", "allow_list", "allow_all"}, (
+            f"{name}: invalid network_policy"
+        )
+
+
+def test_adapter_manifest_digest_changes() -> None:
+    """Changing any manifest field should change the digest."""
+    base = AdapterManifest(name="test", version="1.0.0")
+    d1 = base.compute_digest()
+
+    variant = AdapterManifest(name="test", version="1.0.1")
+    d2 = variant.compute_digest()
+    assert d2 != d1, "changing version should change digest"
+
+    variant2 = AdapterManifest(name="test2", version="1.0.0")
+    d3 = variant2.compute_digest()
+    assert d3 != d1, "changing name should change digest"
+
+    variant3 = AdapterManifest(name="test", version="1.0.0", capabilities=["timeout"])
+    d4 = variant3.compute_digest()
+    assert d4 != d1, "changing capabilities should change digest"
+
+
+def test_adapter_manifest_digest_deterministic() -> None:
+    """The same manifest fields should always produce the same digest."""
+    m1 = AdapterManifest(name="test", version="1.0.0", capabilities=["a", "b"])
+    m2 = AdapterManifest(name="test", version="1.0.0", capabilities=["a", "b"])
+    assert m1.compute_digest() == m2.compute_digest()
+
+    m3 = AdapterManifest(
+        name="test",
+        version="1.0.0",
+        capabilities=["a", "b"],
+        input_schema={"type": "object"},
+        output_schema={"type": "object"},
+        network_policy="allow_list",
+    )
+    m4 = AdapterManifest(
+        name="test",
+        version="1.0.0",
+        capabilities=["a", "b"],
+        input_schema={"type": "object"},
+        output_schema={"type": "object"},
+        network_policy="allow_list",
+    )
+    assert m3.compute_digest() == m4.compute_digest()

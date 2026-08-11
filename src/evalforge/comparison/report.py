@@ -65,6 +65,8 @@ class ComparisonReport:
                 "candidate_exit_code": self.candidate_score.exit_code,
                 "safety_violations": self.candidate_score.safety_violations,
                 "cost_delta_usd": self.result.aggregate.get("cost_delta_usd", 0),
+                "adapter_changed": self.result.aggregate.get("adapter_changed", False),
+                "model_changed": self.result.aggregate.get("model_changed", False),
             },
             "scenario_deltas": self.result.scenario_deltas,
             "family_deltas": self.result.family_deltas,

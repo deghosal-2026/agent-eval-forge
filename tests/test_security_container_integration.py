@@ -25,7 +25,7 @@ DOCKER_IMAGE = os.environ.get("EVALFORGE_DOCKER_IMAGE", "evalforge-agent-runner"
 
 def _docker_available() -> bool:
     try:
-        subprocess.run(  # noqa: S603
+        subprocess.run(
             ["docker", "info"],  # noqa: S607
             capture_output=True,
             timeout=10,

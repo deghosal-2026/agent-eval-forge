@@ -1,8 +1,8 @@
 # PRD: Agent Eval Forge
 
 **Status:** Approved  
-**Version:** 1.0  
-**Date:** 2026-07-28  
+**Version:** 1.1  
+**Date:** 2026-08-10  
 **Author:** Debashish Ghosal
 
 ## Problem Statement
@@ -224,7 +224,7 @@ The harness should not require a team to rewrite their agent. It should require 
 
 ### v0.1 Scope (Complete)
 
-All planned v0.2 features were pulled into v0.1.0:
+The following features shipped in v0.1.0:
 
 - ✅ Scenario pack discovery, scaffolding (`evalforge init`), and linting
 - ✅ Synthetic adversarial case generation (fuzzer + security evals)
@@ -233,6 +233,25 @@ All planned v0.2 features were pulled into v0.1.0:
 - ✅ Plugin system with entry-point discovery
 - ✅ External benchmarks (SWE-bench, WebArena)
 - ✅ Failure taxonomy and analytics
+
+### v0.2 Scope (Complete)
+
+The v0.2.0 release shipped significant new features, bug fixes, and framework support:
+
+- ✅ **7 new framework adapters:** CrewAI, OpenAI Agents SDK, smolagents, AutoGen, LlamaIndex, Claude Agent SDK, Google ADK — all with functional support, manifest+digest binding, model/provider redirection, and trajectory extraction. 12 total adapters.
+- ✅ **Three-gate CI scoring** — compatibility, safety, and quality dimensions scored independently with per-dimension gating (`--fail-on compatibility|safety|quality`).
+- ✅ **Scoring breakdown + divergence detection** — per-check pass/fail for all 17 deterministic scorers, divergence classification (critical/warning) when deterministic and LLM-judge scores disagree. `--fail-on-divergence critical` CI gate.
+- ✅ **Phantom-step deterministic scorer** — detects tool calls that don't advance state, exposed in scoring breakdown with configurable warning threshold.
+- ✅ **Reproducible run manifest** (`run-manifest.json`) — OS, arch, Python version, dependency tree, adapter info per run. `--no-manifest` flag.
+- ✅ **Execution environment labeling** — `execution_environment` block in run JSON with OS, arch, model backend, sandbox status.
+- ✅ **Three-way outcome split** — comparison engine classifies failures as `adapter_failed`, `agent_crashed`, or `scenario_failed` via FailureTaxonomy.
+- ✅ **Adapter-agent boundary diagnostics** — `trace_diff.json` on failure with divergence type and adapter-level introspection (stdout/stderr/exit code).
+- ✅ **AdapterManifest with digest binding** — structured adapter metadata with SHA-256 digest, bound to baselines for comparison integrity.
+- ✅ **Model mismatch detection** — comparison engine detects model-layer changes distinct from code regressions.
+- ✅ **Two-layer defense architecture** — documented empirical evidence that EvalForge (Layer 2) catches integration failures invisible to judgment evaluators (Layer 1). See `docs/architecture.md`.
+- ✅ **Model-vs-deterministic scoring comparison** — JPS integration study findings documented in `docs/scoring-comparison.md`.
+- ✅ **Adversarial scenario pack support** — documented pattern and example pack (`examples/adversarial-pack/`).
+- ✅ **6 critical bug fixes** — exit codes (#269), crashed-agent scoring (#270), regression detection (#271), ToolStub wiring (#272), rubric criteria dead text (#273), CLI paper cuts (#274).
 
 ### Benchmarks & Scenarios
 
@@ -261,7 +280,7 @@ Connectors are format translators only — they do not change or extend the core
 ### v0.2+ Expansion
 
 - hosted artifact storage or report viewer
-- deeper integrations for CrewAI and other OSS frameworks
+- deeper integrations for additional OSS frameworks (beyond the 12 adapters already shipped)
 - public leaderboard (opt-in)
 - sigstore-based pack signing
 

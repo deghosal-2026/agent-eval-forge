@@ -87,3 +87,89 @@ def test_fixtures_skipped_when_not_fixture_mode(tmp_path: Path) -> None:
     _inject_fixtures(payload, config)
     assert "_fixture_mode" not in payload
     assert "_fixtures_dir" not in payload
+
+
+def test_fixture_used_recorded_in_trajectory(tmp_path: Path) -> None:
+    """Runner annotates consumed fixtures as 'fixture_used: <tool>' note steps."""
+    fixtures_dir = tmp_path / "fixtures"
+    fixtures_dir.mkdir()
+    (fixtures_dir / "policy_lookup.json").write_text(
+        json.dumps({"result": "Premium customers receive a 60-day return window."})
+    )
+
+    pack_yaml = tmp_path / "fixture_pack.yaml"
+    pack_yaml.write_text("""
+pack:
+  name: "fixture-pack"
+  version: "1.0.0"
+scenarios:
+  - id: "fx-1"
+    title: "Fixture usage test"
+    input: "check policy"
+    metrics:
+      task_completion:
+        threshold: 1.0
+""")
+
+    agent_py = tmp_path / "fixture_agent.py"
+    agent_py.write_text('''
+def run(payload: dict) -> dict:
+    return {
+        "schema_version": "evalforge.run_envelope.v1",
+        "status": "completed",
+        "output": {"final": "here is the policy", "structured": None},
+        "trajectory": {
+            "steps": [
+                {
+                    "type": "tool_call",
+                    "tool": "policy_lookup",
+                    "args": {},
+                    "duration_ms": 1,
+                }
+            ]
+        },
+        "cost": {"input_tokens": 1, "output_tokens": 1, "total_tokens": 2, "cost_usd": 0.0},
+        "error": None,
+    }
+''')
+
+    import sys
+    sys.path.insert(0, str(tmp_path))
+    try:
+        artifact = _run_one(
+            agent_module="fixture_agent",
+            pack_path=str(pack_yaml),
+            fixtures_dir=str(fixtures_dir),
+        )
+    finally:
+        sys.path.remove(str(tmp_path))
+
+    assert artifact.status == "completed"
+    note_steps = [s for s in artifact.trajectory if s.type == "note"]
+    assert any(
+        "fixture_used: policy_lookup" in (s.content or "")
+        for s in note_steps
+    ), f"expected fixture_used note in trajectory, got: {artifact.trajectory}"
+
+
+def _run_one(
+    agent_module: str,
+    pack_path: str,
+    fixtures_dir: str,
+) -> Any:
+    """Run a single-scenario pack through the Runner with fixtures enabled."""
+    from evalforge.runner import Runner
+
+    runner = Runner(
+        agent_config={
+            "type": "python",
+            "module": agent_module,
+            "function": "run",
+            "fixtures": True,
+            "fixtures_dir": fixtures_dir,
+            "timeout_seconds": 10,
+        },
+        output_dir=str(Path(pack_path).parent / "output"),
+    )
+    runner.load_pack(pack_path)
+    return runner.run_one("fx-1")

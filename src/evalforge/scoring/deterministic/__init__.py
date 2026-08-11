@@ -10,5 +10,8 @@ Modules:
     gates   — Deterministic gates for hybrid metrics (policy adherence, retry discipline).
     grounding — Factual consistency, source citation, output grounding, contradiction detection.
     output  — Schema validity and field presence checks.
+    phantom — Phantom-step detection for trajectory efficiency.
     tools   — Tool-call correctness, required tool presence, disallowed-tool avoidance.
 """
+
+from evalforge.scoring.deterministic import phantom  # noqa: F401

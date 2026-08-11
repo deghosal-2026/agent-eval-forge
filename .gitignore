@@ -33,9 +33,7 @@ htmlcov/
 .evalforge/
 
 # Field test caches (do not commit third-party agent repos)
-field/agents/*
-!field/agents/*/evalforge_wrapper.py
-!field/agents/*/pyproject.toml
+field/agents/
 field/.llm_cache/
 
 # Superpowers skill directory (local agent skill caches)

@@ -92,7 +92,12 @@ class BaselineStore:
             p.stem for p in self._base.iterdir() if p.suffix == ".json"
         )
 
-    def validate(self, name: str, pack_version: str) -> str:
+    def validate(
+        self,
+        name: str,
+        pack_version: str,
+        adapter_manifest: dict[str, Any] | None = None,
+    ) -> str:
         """Check that a baseline's pack version matches the expected version.
 
         This is a warning-only check — it returns a descriptive message on
@@ -102,6 +107,10 @@ class BaselineStore:
         Args:
             name: The baseline name to validate.
             pack_version: The expected pack version string.
+            adapter_manifest: Optional adapter manifest dict to compare
+                against the baseline's stored manifest. If provided and
+                the baseline has a manifest, the digest fields are compared
+                and a mismatch message is returned.
 
         Returns:
             Empty string if versions match.
@@ -113,6 +122,15 @@ class BaselineStore:
                 f"version mismatch: baseline={baseline.pack_version}, "
                 f"pack={pack_version}"
             )
+        if adapter_manifest is not None and baseline.adapter_manifest is not None:
+            baseline_digest = baseline.adapter_manifest.get("digest", "")
+            candidate_digest = adapter_manifest.get("digest", "")
+            if baseline_digest and candidate_digest and baseline_digest != candidate_digest:
+                return (
+                    f"adapter digest mismatch: "
+                    f"baseline={baseline_digest[:8]}..., "
+                    f"candidate={candidate_digest[:8]}..."
+                )
         return ""
 
     def describe(self, name: str) -> dict[str, Any]:
@@ -132,8 +150,18 @@ class BaselineStore:
         avg_score = None
         if bl.score_snapshot:
             scenario_scores = bl.score_snapshot.get("scenario_scores", {})
-            scores = list(scenario_scores.values())
-            avg_score = sum(scores) / len(scores) if scores else None
+            score_values: list[float] = []
+            for ss in scenario_scores.values():
+                if isinstance(ss, (int, float)):
+                    score_values.append(float(ss))
+                    continue
+                if isinstance(ss, dict):
+                    for mr in (ss.get("metrics") or {}).values():
+                        s = mr.get("score") if isinstance(mr, dict) else None
+                        if isinstance(s, (int, float)):
+                            score_values.append(float(s))
+            if score_values:
+                avg_score = sum(score_values) / len(score_values)
         return {
             "name": bl.name,
             "pack": bl.pack,

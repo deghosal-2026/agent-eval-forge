@@ -23,6 +23,7 @@ from evalforge.models.errors import (
     EvalForgeError,
     PackParseError,
 )
+from evalforge.models.manifest import RunManifest, build_manifest, collect_host_info
 from evalforge.models.pack import (
     Budget,
     Expected,
@@ -32,6 +33,7 @@ from evalforge.models.pack import (
     ScenarioPack,
     Tool,
 )
+from evalforge.models.trace import ExecutionTrace, compute_trace_diff
 
 __all__ = [
     "AdapterError",
@@ -39,15 +41,20 @@ __all__ = [
     "Budget",
     "Cost",
     "EvalForgeError",
+    "ExecutionTrace",
     "Expected",
     "Metric",
     "PackMetadata",
     "PackParseError",
     "RunArtifact",
+    "RunManifest",
     "RunOutput",
     "RunTimestamps",
     "Scenario",
     "ScenarioPack",
     "Tool",
     "TrajectoryStep",
+    "build_manifest",
+    "collect_host_info",
+    "compute_trace_diff",
 ]

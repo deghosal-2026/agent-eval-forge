@@ -7,8 +7,9 @@ behind a deterministic fast path, and a ScoringEngine that orchestrates
 evaluation across an entire scenario pack.
 
 Sub-packages:
-    deterministic/ — Rule-based scorers (tool usage, args, budget, gates, grounding, output).
-    judge/         — LLM-as-judge scorers and provider-specific clients (OpenAI, Anthropic, MLX, Ollama).
+    deterministic/ — Rule-based scorers (tool-usage, args, budget, gates, grounding, output).
+    judge/         — LLM-as-judge scorers and provider-specific clients (OpenAI, Anthropic,
+                     MLX, Ollama).
 """
 
 # Force registration of all built-in scorers by importing their modules.

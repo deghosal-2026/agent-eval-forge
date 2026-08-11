@@ -15,6 +15,26 @@ import json
 import sys
 
 
+def run(payload: dict) -> dict:
+    """Python-import compatible entry point."""
+    return main_for_run(payload)
+
+
+def main_for_run(payload: dict) -> dict:
+    mode = payload.get("context", {}).get("mode")
+    if mode == "raw":
+        return {
+            "schema_version": "evalforge.run_envelope.v1",
+            "status": "completed",
+            "output": {"final": "raw text answer"},
+        }
+    return {
+        "schema_version": "evalforge.run_envelope.v1",
+        "status": "completed",
+        "output": {"final": "from envelope"},
+    }
+
+
 def main() -> None:
     payload = json.loads(sys.stdin.read())
     mode = payload.get("context", {}).get("mode")

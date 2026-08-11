@@ -19,14 +19,17 @@ module owns the three shared pieces of that pipeline:
 
 from __future__ import annotations
 
+import importlib.metadata
 import json
 from abc import ABC, abstractmethod
-from typing import Any
+from typing import Any, Literal
 
 from evalforge.errors import AdapterErrorTaxonomy
+from evalforge.models.adapter_manifest import AdapterManifest
 from evalforge.models.artifact import Cost, RunArtifact, RunOutput, RunTimestamps, TrajectoryStep
 from evalforge.models.errors import AdapterError, AgentTimeoutError
 from evalforge.models.pack import Scenario
+from evalforge.models.trace import compute_trace_diff
 
 INVOCATION_SCHEMA_VERSION = "evalforge.invocation_payload.v1"
 RUN_ENVELOPE_SCHEMA_VERSION = "evalforge.run_envelope.v1"
@@ -181,6 +184,45 @@ class Adapter(ABC):
                 start_ms,
             )
 
+    def get_manifest(self) -> dict[str, Any]:
+        """Return the adapter manifest as a serialised dict.
+
+        Returns a dict with adapter identity, capabilities, schema contracts,
+        and a SHA-256 digest computed from all fields. Subclasses should
+        override to provide adapter-specific values.
+        """
+        try:
+            version = importlib.metadata.version("agent-eval-forge")
+        except (importlib.metadata.PackageNotFoundError, OSError):
+            version = "0.0.0"
+        manifest = AdapterManifest(
+            name=self.name,
+            version=version,
+            capabilities=["stdin_stdout"],
+            input_schema={
+                "type": "object",
+                "properties": {
+                    "type": {"type": "string"},
+                    "timeout_seconds": {"type": "number", "default": 120},
+                    "strict_output": {"type": "boolean", "default": False},
+                },
+            },
+            output_schema={
+                "type": "object",
+                "properties": {
+                    "schema_version": {"type": "string"},
+                    "status": {"type": "string"},
+                    "output": {"type": "object"},
+                    "trajectory": {"type": "object"},
+                    "cost": {"type": "object"},
+                    "error": {"type": "string"},
+                },
+            },
+            tool_event_stream_version=RUN_ENVELOPE_SCHEMA_VERSION,
+            network_policy="allow_none",
+        )
+        return manifest.to_dict()
+
     @abstractmethod
     def _invoke(self, payload: dict[str, Any], config: dict[str, Any]) -> str | dict[str, Any]:
         """Invoke the agent; return raw stdout (str) or an envelope dict.
@@ -215,11 +257,13 @@ def _now_ms() -> int:
 def _artifact_for_error(
     scenario: Scenario,
     run_id: str,
-    status: str,
+    status: Literal["timeout", "error"],
     error: str,
     config: dict[str, Any],
     start_iso: str,
     start_ms: int,
+    *,
+    trace_diff: dict[str, Any] | None = None,
 ) -> RunArtifact:
     """Build a RunArtifact representing a failed run.
 
@@ -231,6 +275,8 @@ def _artifact_for_error(
         config: Adapter configuration (used for agent metadata and type).
         start_iso: ISO-8601 start timestamp.
         start_ms: Start time in milliseconds.
+        trace_diff: Optional pre-computed trace-diff dict. When ``None``, trace
+            diff is derived automatically from status.
 
     Returns:
         A RunArtifact with the error status, zeroed output/trajectory/cost,
@@ -239,6 +285,11 @@ def _artifact_for_error(
     end_ms = _now_ms()
     adapter_type = config.get("type", "unknown")
     normalized = AdapterErrorTaxonomy.normalize(Exception(error), adapter_type)
+    if trace_diff is None:
+        trace_diff = compute_trace_diff(
+            artifact_has_trajectory=False,
+            artifact_status=status,
+        )
     return RunArtifact(
         id=f"{run_id}-{scenario.id}",
         scenario_id=scenario.id,
@@ -250,6 +301,7 @@ def _artifact_for_error(
         status=status,
         error=error,
         error_category=normalized["category"],
+        trace_diff=trace_diff,
     )
 
 

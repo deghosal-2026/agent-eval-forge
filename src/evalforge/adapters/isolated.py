@@ -7,8 +7,10 @@ Spawns a separate Python process per scenario to:
 - Capture stdout/stderr separately
 
 The worker process is launched via ``python -m evalforge.adapters.worker``
-with a JSON payload on stdin. Supported adapter types are ``langgraph`` and
-``pydantic-ai``.
+with a JSON payload on stdin. Supported adapter types include all framework
+adapters registered in ``ADAPTERS`` (``langgraph``, ``pydantic-ai``,
+``crewai``, ``openai-agents``, ``smolagents``, ``autogen``, ``llamaindex``,
+``claude``, ``adk``).
 
 Exports:
     IsolatedAdapter: Adapter that runs agents in isolated subprocesses.
@@ -60,7 +62,8 @@ class IsolatedAdapter(Adapter):
         adapter_type = config.get("adapter_type")
         if not adapter_type:
             raise AdapterError("isolated adapter requires `adapter_type` in config")
-        if adapter_type not in ("langgraph", "pydantic-ai"):
+        from evalforge.adapters.factory import ADAPTERS
+        if adapter_type not in ADAPTERS:
             raise AdapterError(f"unsupported adapter_type: {adapter_type}")
 
         module = config.get("module")

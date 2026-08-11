@@ -61,6 +61,11 @@ test_group = click.Group(name="test", help="Run scenario packs as tests.")
     "--agent", required=True,
     help="Agent spec (e.g. 'python:my_module.run' or './my_agent')",
 )
+@click.option(
+    "--agent-function",
+    default=None,
+    help="Override function name for Python-import adapters (default: 'run')",
+)
 @click.option("--judge", default=None, help="Judge spec (e.g. 'openai:gpt-4o-mini' or 'mock')")
 @click.option(
     "--output", default=".evalforge", show_default=True,
@@ -77,6 +82,7 @@ test_group = click.Group(name="test", help="Run scenario packs as tests.")
 def test_run(
     scenarios_dir: str,
     agent: str,
+    agent_function: str | None,
     judge: str | None,
     output: str,
     output_format: str,
@@ -114,6 +120,8 @@ def test_run(
         raise SystemExit(1)
 
     agent_config = parse_agent_spec(agent)
+    if agent_function:
+        agent_config["function"] = agent_function
     tag_list = tags.split(",") if tags else None
 
     all_results: list[dict[str, Any]] = []

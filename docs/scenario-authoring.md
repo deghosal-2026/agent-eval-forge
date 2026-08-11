@@ -2,6 +2,8 @@
 
 This guide covers best practices for writing effective evaluation scenarios for EvalForge.
 
+See also: [Adversarial Scenarios](#adversarial-scenarios) for testing EvalForge's own blind spots, and [Architecture](architecture.md) for the two-layer defense model.
+
 ## Core Principles
 
 ### 1. Minimal Deterministic Prompts
@@ -29,6 +31,17 @@ Use the most specific `expected` type that captures correctness:
 | `tool_trace` | Ordered tool call sequence | `trace: [{tool: "customer_lookup", args: {id: "12345"}}]` |
 | `tool_args` | Specific tool + arguments | `tool: "customer_lookup", args: {id: "12345"}` |
 | `rubric` | Qualitative pass/fail criteria | `criteria: ["Output contains the customer's email"]` |
+
+#### Rubric criteria reach the judge (v0.2.0)
+
+For `rubric` scenarios, the `criteria` text is interpolated directly into the
+LLM judge prompt, and the agent's trajectory (tool calls, step count, wall
+time, errors) is summarized into a `### Agent Trajectory` section. This means
+hand-written criteria actually affect scoring, and the judge can evaluate
+tool-use behavior — not just the final answer.
+
+If `expected.value` is `None`, the `### Expected Answer` line is omitted from
+the prompt rather than rendered as `None`.
 
 ### 3. VCR Cassettes for E2E
 
@@ -75,8 +88,6 @@ scenarios:
       args:
         id: "12345"
     metrics:
-      exact_match:
-        threshold: 1.0
       tool_correctness:
         threshold: 1.0
     tags: [retrieval, single-tool]
@@ -91,7 +102,6 @@ scenarios:
 
 | Metric | Description |
 |--------|-------------|
-| `exact_match` | Agent's final answer matches expected exactly |
 | `schema_validity` | Output passes JSON schema validation |
 | `field_correctness` | Required fields present in structured output |
 | `tool_correctness` | Agent only called allowed tools |
@@ -110,6 +120,7 @@ scenarios:
 | `data_exfiltration_prevention` | Agent prevents data exfiltration |
 | `ssrf_prevention` | Agent prevents SSRF attacks |
 | `sandbox_escape_resistance` | Agent resists sandbox escape attempts |
+| `phantom_step_scorer` | Detects tool calls that don't advance agent state (v0.2.0) |
 
 ### LLM-as-Judge Metrics
 
@@ -189,4 +200,74 @@ from evalforge.analytics import FailureTaxonomy
 report = FailureTaxonomy.analyze(run_score)
 print(report.failure_breakdown)
 print(report.recommendations)
+```
+
+## Adversarial Scenarios
+
+Adversarial scenarios are designed to test EvalForge's own detection
+capabilities — not the agent under test. They target known blind spots in the
+scoring harness and verify that the [two-layer defense](architecture.md) is
+working.
+
+### Why Write Adversarial Scenarios
+
+During the JPS integration study, four hidden adversarial cases were written by
+an independent reviewer. One was intentionally designed to escape the judgment
+layer's own tests — it succeeded, but EvalForge's `argument_correctness` trace
+scorer caught it downstream. This proved that adversarial cases catch gaps
+neither normal scenarios nor unit tests will find.
+
+Adversarial scenarios test:
+- Whether rubric criteria actually reach the judge prompt
+- Whether empty trajectories are scored honestly
+- Whether safety violations produce non-zero exit codes
+- Whether the ToolStub intercepts calls in fixture mode
+- Whether hidden adversarial cases escape single-layer defense
+
+### Pattern: Independent Reviewer Authorship
+
+The most effective adversarial cases are written by someone who didn't write
+the code under test. They think about the system differently and target
+assumptions the author made unconsciously.
+
+### Pattern: Layered Defense
+
+Adversarial cases should exercise the two-layer model:
+1. Design a case that should pass Layer 1 (judgment evaluator) tests
+2. Verify Layer 2 (EvalForge) catches it
+
+The result that matters is not whether any single case passes or fails — it's
+whether the layers catch different failures.
+
+### Interpreting Results
+
+| Layer 1 | Layer 2 | Interpretation |
+|---|---|---|
+| Pass | Pass | Agent and harness both healthy |
+| Fail | Pass | Judgment-logic bug; harness working |
+| Pass | Fail | EvalForge blind spot — investigate |
+| Fail | Fail | Both layers agree; investigate root cause |
+
+When Layer 1 passes and Layer 2 fails, EvalForge caught something the judgment
+evaluator missed — this is the two-layer defense working as designed.
+
+### Example Adversarial Pack
+
+A canonical adversarial pack is shipped at
+`examples/adversarial-pack/adversarial-scenarios.yaml`. It contains five
+scenarios targeting the vulnerability classes discovered in the JPS study
+(#269-#274):
+
+| Scenario | Target Gap |
+|---|---|
+| `adversarial-01-criteria-dead-text` | Rubric criteria never reach judge prompt (#273) |
+| `adversarial-02-empty-trajectory` | Crashed/empty agent scores as passing (#270) |
+| `adversarial-03-exit-code` | Safety violations exit 0 in CI (#269) |
+| `adversarial-04-toolstub-honour-system` | Tool calls bypass fixtures in deterministic mode (#272) |
+| `adversarial-05-hidden-escape` | Hidden case escapes single-layer defense (#294) |
+
+Run it:
+```bash
+evalforge validate --pack examples/adversarial-pack/adversarial-scenarios.yaml --strict
+evalforge run --pack examples/adversarial-pack/adversarial-scenarios.yaml --agent python:your_agent:run --fixtures
 ```

@@ -88,9 +88,9 @@ class TestSeedManager:
     def test_set_global_seed(self) -> None:
         sm = SeedManager(seed=12345)
         sm.set_global_seed()
-        seq1 = [random.random() for _ in range(5)]
+        seq1 = [random.random() for _ in range(5)]  # noqa: S311
         random.seed(12345)
-        seq2 = [random.random() for _ in range(5)]
+        seq2 = [random.random() for _ in range(5)]  # noqa: S311
         assert seq1 == seq2
 
     def test_scenario_seed_is_stable(self) -> None:
